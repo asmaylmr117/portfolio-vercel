@@ -169,25 +169,7 @@ curl https://your-app.vercel.app/api/health
 }
 ```
 
-## 🐛 Troubleshooting
 
-### Common Issues:
-
-1. **Database Connection Error**
-   - Verify `MONGODB_ATLAS_URI` is correct
-   - Check IP whitelist in MongoDB Atlas
-
-2. **CORS Errors**
-   - Ensure the frontend URL is correctly set in `FRONTEND_URL`
-   - Review CORS settings in the backend
-
-3. **Rate Limiting**
-   - Adjust rate limit settings if needed
-   - Monitor API usage patterns
-
-## 📞 Support
-
-For help and questions:
 - Open an issue on the repository
 - Review Vercel’s documentation
 - Check Vercel functions logs

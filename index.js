@@ -22,29 +22,28 @@ app.use(helmet({
 }));
 app.use(compression());
 
-// CORS configuration for Vercel
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:3000',
-  'https://localhost:3000',
-  // أضف النطاقات المسموح بها
-];
-
+// CORS configuration - السماح لجميع النطاقات
 app.use(cors({
-  origin: function (origin, callback) {
-    // السماح للطلبات بدون origin (مثل mobile apps)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // السماح لجميع النطاقات
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 200 // لدعم المتصفحات القديمة
 }));
+
+// إضافة headers إضافية للتأكد من السماح للجميع
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+  
+  // الاستجابة للـ preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 // Rate limiting - أقل تشدداً للـ production
 const limiter = rateLimit({
@@ -60,9 +59,11 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files serving - محسن للـ Vercel
+// Static files serving - السماح لجميع النطاقات
 app.use('/images', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', '*'); // السماح للجميع
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   res.setHeader('Cache-Control', 'public, max-age=31536000'); // سنة واحدة
   next();

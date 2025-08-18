@@ -71,35 +71,47 @@ app.use('/images', (req, res, next) => {
 
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
 
-// MongoDB Atlas Connection - محسن للـ serverless
+// MongoDB Atlas Connection - محسن للـ serverless مع إعادة المحاولة
 const connectDB = async () => {
   try {
-    // التحقق من وجود الاتصال
-    if (mongoose.connections[0].readyState) {
+    if (!process.env.MONGODB_ATLAS_URI) {
+      throw new Error('MONGODB_ATLAS_URI environment variable is not set');
+    }
+
+    if (mongoose.connections[0].readyState === 1) {
       console.log('MongoDB already connected');
       return;
     }
 
     const conn = await mongoose.connect(process.env.MONGODB_ATLAS_URI, {
-      serverSelectionTimeoutMS: 10000, // 10 ثوانِ
+      serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
-      maxPoolSize: 5, // أقل للـ serverless
+      connectTimeoutMS: 15000,
+      maxPoolSize: 5,
       minPoolSize: 0,
       maxIdleTimeMS: 30000,
-      connectTimeoutMS: 10000,
-      bufferCommands: false, // مهم للـ serverless
-      bufferMaxEntries: 0,
+      bufferCommands: false,
+      retryWrites: true,
+      retryReads: true
+      // ❌ bufferMaxEntries تمت إزالتها لأنها غير مدعومة
     });
 
     console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
+    console.log(`Database Name: ${conn.connection.name}`);
+    return conn;
   } catch (error) {
     console.error('MongoDB Atlas connection error:', error.message);
-    // لا نوقف العملية في البيئة الإنتاجية
-    if (process.env.NODE_ENV !== 'production') {
+    console.error('Full error:', error);
+
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Attempting to reconnect in 5 seconds...');
+      setTimeout(connectDB, 5000);
+    } else {
       process.exit(1);
     }
   }
 };
+
 
 // تنفيذ الاتصال
 connectDB();

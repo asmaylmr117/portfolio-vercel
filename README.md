@@ -7,7 +7,7 @@ A backend API for the portfolio built with **Express.js** and **MongoDB**, optim
 - **Express.js**: Fast and flexible framework
 - **MongoDB Atlas**: Cloud-based database
 - **Mongoose**: ODM for MongoDB
-- **Security**: Helmet, CORS, Rate Limiting
+- **Security**: Helmet, CORS, Rate Limiting, Api key
 - **Performance**: Compression, Caching
 - **Vercel Ready**: Optimized for deployment
 

@@ -74,5 +74,4 @@ const projectSchema = new mongoose.Schema({
 projectSchema.index({ slug: 1 });
 projectSchema.index({ category: 1 });
 projectSchema.index({ status: 1 });
-
-module.exports = mongoose.model('Project', projectSchema);
+module.exports = mongoose.model('Project', projectSchema, 'projects');

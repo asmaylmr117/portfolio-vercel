@@ -69,5 +69,4 @@ const blogSchema = new mongoose.Schema({
 blogSchema.index({ slug: 1 });
 blogSchema.index({ author: 1 });
 blogSchema.index({ thumb: 1 });
-
-module.exports = mongoose.model('Blog', blogSchema);
+module.exports = mongoose.model('Blog', blogSchema, 'blogs');

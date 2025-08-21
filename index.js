@@ -17,29 +17,71 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(helmet());
-app.use(compression());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", 'https://software-company-mu.vercel.app'],
+    },
+  },
+})); // Secure headers with Content Security Policy
+app.use(compression()); // Compress responses for performance
 app.use(cors({
-  origin: 'https://software-company-mu.vercel.app',
+  origin: 'https://software-company-mu.vercel.app', // Allow only frontend origin
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
   optionsSuccessStatus: 200
 }));
 
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 200 : 100,
-  keyGenerator: (req) => req.ip,
-  message: 'Too many requests from this IP',
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 200 : 100, // Max requests
+  keyGenerator: (req) => req.get('X-API-Key') || req.ip, // Use API key or IP
+  message: 'Too many requests from this source',
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
+// API key authentication middleware
+const apiKeyAuth = (req, res, next) => {
+  const origin = req.get('Origin') || req.get('Referer'); // Check request origin
+  const allowedOrigin = 'https://software-company-mu.vercel.app';
+
+  // Allow requests from the frontend without API key
+  if (origin && origin.startsWith(allowedOrigin)) {
+    console.log(`Access granted for frontend origin: ${origin}`);
+    return next();
+  }
+
+  // Require API key for other sources (e.g., Postman)
+  const apiKey = req.get('X-API-Key');
+  if (!apiKey) {
+    console.warn(`Access attempt without API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
+    return res.status(401).json({
+      message: 'API key is missing',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  if (apiKey !== process.env.API_SECRET) {
+    console.warn(`Access attempt with invalid API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
+    return res.status(401).json({
+      message: 'Invalid API key',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  console.log(`API key verified from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
+  next();
+};
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Serve static images
 app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   setHeaders: (res) => {
     res.setHeader('Access-Control-Allow-Origin', 'https://software-company-mu.vercel.app');
@@ -51,6 +93,7 @@ app.use('/images', express.static(path.join(__dirname, 'public/images'), {
 
 let cachedConnection = null;
 
+// Connect to MongoDB
 const connectDB = async () => {
   if (cachedConnection) {
     console.log('Using cached MongoDB connection');
@@ -63,17 +106,16 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(process.env.MONGODB_ATLAS_URI, {
-  dbName: 'portfolio', 
-  serverSelectionTimeoutMS: 15000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 15000,
-  maxPoolSize: 3,
-  minPoolSize: 0,
-  maxIdleTimeMS: 30000,
-  retryWrites: true,
-  retryReads: true
-});
-
+      dbName: 'portfolio',
+      serverSelectionTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 15000,
+      maxPoolSize: 3,
+      minPoolSize: 0,
+      maxIdleTimeMS: 30000,
+      retryWrites: true,
+      retryReads: true
+    });
 
     console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
     cachedConnection = conn;
@@ -88,11 +130,13 @@ mongoose.connection.on('connected', () => console.log('Mongoose connected to Mon
 mongoose.connection.on('error', (err) => console.error('Mongoose connection error:', err));
 mongoose.connection.on('disconnected', () => console.log('Mongoose disconnected from MongoDB Atlas'));
 
-app.use('/api/blogs', blogRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/services', serviceRoutes);
-app.use('/api/teams', teamRoutes);
+// Apply API key middleware to sensitive routes
+app.use('/api/blogs', apiKeyAuth, blogRoutes);
+app.use('/api/projects', apiKeyAuth, projectRoutes);
+app.use('/api/services', apiKeyAuth, serviceRoutes);
+app.use('/api/teams', apiKeyAuth, teamRoutes);
 
+// Health check endpoint (unprotected for monitoring)
 app.get('/api/health', async (req, res) => {
   try {
     const dbStatus = mongoose.connection.readyState;
@@ -131,6 +175,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Root endpoint (unprotected)
 app.get('/', (req, res) => {
   res.json({
     message: 'Portfolio Backend API',
@@ -145,6 +190,7 @@ app.get('/', (req, res) => {
   });
 });
 
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
@@ -154,6 +200,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Handle unknown routes
 app.use((req, res) => {
   res.status(404).json({
     message: 'Route not found',
@@ -163,6 +210,7 @@ app.use((req, res) => {
   });
 });
 
+// Graceful shutdown
 const gracefulShutdown = async () => {
   try {
     await mongoose.connection.close();
@@ -175,11 +223,13 @@ const gracefulShutdown = async () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
+// Export for Vercel
 module.exports = async (req, res) => {
   await connectDB();
   return app(req, res);
 };
 
+// Run server locally in development
 if (process.env.NODE_ENV !== 'production') {
   connectDB().then(() => {
     app.listen(PORT, () => {

@@ -17,31 +17,20 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet());
 app.use(compression());
-
 app.use(cors({
-  origin: true,
+  origin: 'https://software-company-mu.vercel.app',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   optionsSuccessStatus: 200
 }));
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://software-company-mu.vercel.app/');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: process.env.NODE_ENV === 'production' ? 200 : 100,
+  keyGenerator: (req) => req.ip,
   message: 'Too many requests from this IP',
   standardHeaders: true,
   legacyHeaders: false,
@@ -51,67 +40,51 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-app.use('/images', (req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', 'https://software-company-mu.vercel.app/');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Cache-Control', 'public, max-age=31536000');
-  next();
-});
+app.use('/images', express.static(path.join(__dirname, 'public/images'), {
+  setHeaders: (res) => {
+    res.setHeader('Access-Control-Allow-Origin', 'https://software-company-mu.vercel.app');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+  }
+}));
 
-app.use('/images', express.static(path.join(__dirname, 'public/images')));
+let cachedConnection = null;
 
 const connectDB = async () => {
+  if (cachedConnection) {
+    console.log('Using cached MongoDB connection');
+    return cachedConnection;
+  }
+
   try {
     if (!process.env.MONGODB_ATLAS_URI) {
       throw new Error('MONGODB_ATLAS_URI environment variable is not set');
-    }
-
-    if (mongoose.connections[0].readyState === 1) {
-      console.log('MongoDB already connected');
-      return;
     }
 
     const conn = await mongoose.connect(process.env.MONGODB_ATLAS_URI, {
       serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
       connectTimeoutMS: 15000,
-      maxPoolSize: 5,
+      maxPoolSize: 3,
       minPoolSize: 0,
       maxIdleTimeMS: 30000,
-      bufferCommands: false,
       retryWrites: true,
       retryReads: true
     });
 
     console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
-    console.log(`Database Name: ${conn.connection.name}`);
+    cachedConnection = conn;
     return conn;
   } catch (error) {
     console.error('MongoDB Atlas connection error:', error.message);
-    console.error('Full error:', error);
-
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Attempting to reconnect in 5 seconds...');
-      setTimeout(connectDB, 5000);
-    } else {
-      process.exit(1);
-    }
+    throw error;
   }
 };
 
-mongoose.connection.on('connected', () => {
-  console.log('Mongoose connected to MongoDB Atlas');
-});
-
-mongoose.connection.on('error', (err) => {
-  console.error('Mongoose connection error:', err);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.log('Mongoose disconnected from MongoDB Atlas');
-});
+mongoose.connection.on('connected', () => console.log('Mongoose connected to MongoDB Atlas'));
+mongoose.connection.on('error', (err) => console.error('Mongoose connection error:', err));
+mongoose.connection.on('disconnected', () => console.log('Mongoose disconnected from MongoDB Atlas'));
 
 app.use('/api/blogs', blogRoutes);
 app.use('/api/projects', projectRoutes);
@@ -127,7 +100,6 @@ app.get('/api/health', async (req, res) => {
       2: 'connecting',
       3: 'disconnecting'
     };
-
     let dbTest = 'unknown';
     try {
       await mongoose.connection.db.admin().ping();
@@ -173,12 +145,9 @@ app.get('/', (req, res) => {
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('Error details:', err);
-  }
   res.status(err.status || 500).json({
     message: err.message || 'Something went wrong!',
-    error: process.env.NODE_ENV === 'production' ? {} : err.stack,
+    error: process.env.NODE_ENV === 'development' ? err.stack : {},
     timestamp: new Date().toISOString()
   });
 });
@@ -204,30 +173,13 @@ const gracefulShutdown = async () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-let isConnected = false;
-
-const startServer = async () => {
-  try {
-    if (!isConnected) {
-      await connectDB();
-      isConnected = true;
-    }
-  } catch (error) {
-    console.error('Initial DB connection failed:', error.message);
-  }
-};
-
-// Export for Vercel
 module.exports = async (req, res) => {
-  if (!isConnected) {
-    await startServer();
-  }
+  await connectDB();
   return app(req, res);
 };
 
-// Local development only
 if (process.env.NODE_ENV !== 'production') {
-  startServer().then(() => {
+  connectDB().then(() => {
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);

@@ -68,4 +68,4 @@ teamSchema.index({ slug: 1 });
 teamSchema.index({ name: 1 });
 teamSchema.index({ title: 1 });
 
-module.exports = mongoose.model('Team', teamSchema);
+module.exports = mongoose.model('Team', teamSchema, 'teams');

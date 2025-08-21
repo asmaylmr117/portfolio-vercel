@@ -63,15 +63,17 @@ const connectDB = async () => {
     }
 
     const conn = await mongoose.connect(process.env.MONGODB_ATLAS_URI, {
-      serverSelectionTimeoutMS: 15000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 15000,
-      maxPoolSize: 3,
-      minPoolSize: 0,
-      maxIdleTimeMS: 30000,
-      retryWrites: true,
-      retryReads: true
-    });
+  dbName: 'portfolio', 
+  serverSelectionTimeoutMS: 15000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 15000,
+  maxPoolSize: 3,
+  minPoolSize: 0,
+  maxIdleTimeMS: 30000,
+  retryWrites: true,
+  retryReads: true
+});
+
 
     console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
     cachedConnection = conn;

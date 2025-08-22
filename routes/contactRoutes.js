@@ -1,4 +1,3 @@
-
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const Contact = require('../models/Contact');
@@ -12,7 +11,7 @@ const contactLimiter = rateLimit({
   keyGenerator: (req) => req.ip,
   message: {
     success: false,
-    message: 'تم تجاوز الحد المسموح للرسائل. يرجى المحاولة مرة أخرى بعد 15 دقيقة.',
+    message: 'Too many contact submissions. Please try again after 15 minutes.',
     timestamp: new Date().toISOString()
   },
   standardHeaders: true,
@@ -26,45 +25,45 @@ const validateContactForm = (req, res, next) => {
 
   // Required fields validation
   if (!name || name.trim().length === 0) {
-    errors.push('الاسم مطلوب');
+    errors.push('Name is required');
   } else if (name.trim().length > 100) {
-    errors.push('الاسم لا يجب أن يتجاوز 100 حرف');
+    errors.push('Name cannot exceed 100 characters');
   }
 
   if (!email || email.trim().length === 0) {
-    errors.push('البريد الإلكتروني مطلوب');
+    errors.push('Email is required');
   } else {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      errors.push('يرجى إدخال بريد إلكتروني صحيح');
+      errors.push('Please enter a valid email address');
     }
   }
 
   if (!phone || phone.trim().length === 0) {
-    errors.push('رقم الهاتف مطلوب');
+    errors.push('Phone number is required');
   } else if (phone.trim().length > 20) {
-    errors.push('رقم الهاتف لا يجب أن يتجاوز 20 رقم');
+    errors.push('Phone number cannot exceed 20 characters');
   }
 
   if (!message || message.trim().length === 0) {
-    errors.push('الرسالة مطلوبة');
+    errors.push('Message is required');
   } else if (message.trim().length > 1000) {
-    errors.push('الرسالة لا يجب أن تتجاوز 1000 حرف');
+    errors.push('Message cannot exceed 1000 characters');
   }
 
   // Optional fields validation
   if (req.body.subject && req.body.subject.trim().length > 200) {
-    errors.push('الموضوع لا يجب أن يتجاوز 200 حرف');
+    errors.push('Subject cannot exceed 200 characters');
   }
 
   if (req.body.company && req.body.company.trim().length > 100) {
-    errors.push('اسم الشركة لا يجب أن يتجاوز 100 حرف');
+    errors.push('Company name cannot exceed 100 characters');
   }
 
   if (errors.length > 0) {
     return res.status(400).json({
       success: false,
-      message: 'يرجى تصحيح الأخطاء التالية',
+      message: 'Please fix the following errors',
       errors,
       timestamp: new Date().toISOString()
     });
@@ -108,7 +107,7 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'لقد تم إرسال البيانات بنجاح! سنتواصل معك قريباً.',
+      message: 'Your message has been sent successfully! We will contact you soon.',
       data: {
         id: savedContact._id,
         submittedAt: savedContact.createdAt
@@ -124,7 +123,7 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
       const validationErrors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({
         success: false,
-        message: 'يرجى تصحيح البيانات المدخلة',
+        message: 'Please correct the submitted data',
         errors: validationErrors,
         timestamp: new Date().toISOString()
       });
@@ -134,14 +133,14 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: 'تم إرسال رسالة من هذا البريد الإلكتروني مسبقاً',
+        message: 'A message from this email address has already been submitted',
         timestamp: new Date().toISOString()
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'حدث خطأ في الخادم. يرجى المحاولة مرة أخرى لاحقاً.',
+      message: 'Server error occurred. Please try again later.',
       timestamp: new Date().toISOString()
     });
   }
@@ -183,7 +182,7 @@ router.get('/', async (req, res) => {
     console.error('Get contacts error:', error);
     res.status(500).json({
       success: false,
-      message: 'حدث خطأ في استرجاع البيانات',
+      message: 'Error retrieving contact data',
       timestamp: new Date().toISOString()
     });
   }
@@ -198,7 +197,7 @@ router.put('/:id/status', async (req, res) => {
     if (!['new', 'read', 'replied'].includes(status)) {
       return res.status(400).json({
         success: false,
-        message: 'حالة غير صحيحة',
+        message: 'Invalid status value',
         timestamp: new Date().toISOString()
       });
     }
@@ -212,14 +211,14 @@ router.put('/:id/status', async (req, res) => {
     if (!contact) {
       return res.status(404).json({
         success: false,
-        message: 'الرسالة غير موجودة',
+        message: 'Contact message not found',
         timestamp: new Date().toISOString()
       });
     }
 
     res.json({
       success: true,
-      message: 'تم تحديث حالة الرسالة بنجاح',
+      message: 'Contact status updated successfully',
       data: contact,
       timestamp: new Date().toISOString()
     });
@@ -228,7 +227,7 @@ router.put('/:id/status', async (req, res) => {
     console.error('Update contact status error:', error);
     res.status(500).json({
       success: false,
-      message: 'حدث خطأ في تحديث الحالة',
+      message: 'Error updating contact status',
       timestamp: new Date().toISOString()
     });
   }
@@ -244,14 +243,14 @@ router.delete('/:id', async (req, res) => {
     if (!contact) {
       return res.status(404).json({
         success: false,
-        message: 'الرسالة غير موجودة',
+        message: 'Contact message not found',
         timestamp: new Date().toISOString()
       });
     }
 
     res.json({
       success: true,
-      message: 'تم حذف الرسالة بنجاح',
+      message: 'Contact message deleted successfully',
       timestamp: new Date().toISOString()
     });
 
@@ -259,7 +258,7 @@ router.delete('/:id', async (req, res) => {
     console.error('Delete contact error:', error);
     res.status(500).json({
       success: false,
-      message: 'حدث خطأ في حذف الرسالة',
+      message: 'Error deleting contact message',
       timestamp: new Date().toISOString()
     });
   }

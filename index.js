@@ -12,6 +12,7 @@ const blogRoutes = require('./routes/blogRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const teamRoutes = require('./routes/teamRoutes');
+const contactRoutes = require('./routes/contactRoutes'); // Add contact routes
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -136,6 +137,23 @@ app.use('/api/projects', apiKeyAuth, projectRoutes);
 app.use('/api/services', apiKeyAuth, serviceRoutes);
 app.use('/api/teams', apiKeyAuth, teamRoutes);
 
+// Contact route - Special handling for POST requests from frontend
+app.use('/api/contact', (req, res, next) => {
+  // Allow POST requests from frontend without API key for contact form submission
+  if (req.method === 'POST') {
+    const origin = req.get('Origin') || req.get('Referer');
+    const allowedOrigin = 'https://software-company-mu.vercel.app';
+    
+    if (origin && origin.startsWith(allowedOrigin)) {
+      console.log(`Contact form submission allowed from frontend: ${origin}`);
+      return next(); // Skip API key check for frontend POST requests
+    }
+  }
+  
+  // Apply API key authentication for all other methods (GET, PUT, DELETE) or external sources
+  return apiKeyAuth(req, res, next);
+}, contactRoutes);
+
 // Health check endpoint (unprotected for monitoring)
 app.get('/api/health', async (req, res) => {
   try {
@@ -185,6 +203,7 @@ app.get('/', (req, res) => {
       projects: '/api/projects',
       services: '/api/services',
       teams: '/api/teams',
+      contact: '/api/contact', // Added contact endpoint
       health: '/api/health'
     }
   });
@@ -235,6 +254,7 @@ if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
+      console.log(`Contact API: http://localhost:${PORT}/api/contact`);
     });
   });
 }

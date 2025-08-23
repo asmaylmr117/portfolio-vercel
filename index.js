@@ -46,9 +46,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// API key authentication middleware
+// API key authentication middleware with enhanced debugging
 const apiKeyAuth = (req, res, next) => {
-  const origin = req.get('Origin') || req.get('Referer'); // Check request origin
+  const origin = req.get('Origin') || req.get('Referer');
   const allowedOrigin = 'https://software-company-mu.vercel.app';
 
   // Allow requests from the frontend without API key
@@ -57,25 +57,52 @@ const apiKeyAuth = (req, res, next) => {
     return next();
   }
 
-  // Require API key for other sources (e.g., Postman)
   const apiKey = req.get('X-API-Key');
+  const expectedKey = process.env.API_SECRET;
+  
+  // Enhanced debugging logs
+  console.log('=== API KEY DEBUG ===');
+  console.log('Request IP:', req.ip);
+  console.log('Request Origin:', origin || 'not provided');
+  console.log('Received API Key:', apiKey ? `"${apiKey}"` : 'undefined');
+  console.log('Expected API Key exists:', !!expectedKey);
+  console.log('Expected API Key:', expectedKey ? `"${expectedKey}"` : 'undefined');
+  console.log('Keys match exactly:', apiKey === expectedKey);
+  console.log('Received key length:', apiKey ? apiKey.length : 0);
+  console.log('Expected key length:', expectedKey ? expectedKey.length : 0);
+  console.log('====================');
+
   if (!apiKey) {
     console.warn(`Access attempt without API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
     return res.status(401).json({
       message: 'API key is missing',
+      debug: {
+        hasApiKey: false,
+        hasExpectedKey: !!expectedKey,
+        origin: origin || 'unknown'
+      },
       timestamp: new Date().toISOString()
     });
   }
 
-  if (apiKey !== process.env.API_SECRET) {
+  if (apiKey !== expectedKey) {
     console.warn(`Access attempt with invalid API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
+    console.warn(`Received: "${apiKey}" vs Expected: "${expectedKey}"`);
     return res.status(401).json({
       message: 'Invalid API key',
+      debug: {
+        receivedKeyLength: apiKey.length,
+        expectedKeyLength: expectedKey ? expectedKey.length : 0,
+        receivedFirst3: apiKey.substring(0, 3),
+        expectedFirst3: expectedKey ? expectedKey.substring(0, 3) : 'N/A',
+        keysMatch: apiKey === expectedKey,
+        hasExpectedKey: !!expectedKey
+      },
       timestamp: new Date().toISOString()
     });
   }
 
-  console.log(`API key verified from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
+  console.log(`API key verified successfully from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
   next();
 };
 
@@ -131,6 +158,55 @@ mongoose.connection.on('connected', () => console.log('Mongoose connected to Mon
 mongoose.connection.on('error', (err) => console.error('Mongoose connection error:', err));
 mongoose.connection.on('disconnected', () => console.log('Mongoose disconnected from MongoDB Atlas'));
 
+// Debug endpoint for API key testing
+app.get('/api/debug-key', (req, res) => {
+  const receivedKey = req.get('X-API-Key');
+  const expectedKey = process.env.API_SECRET;
+  
+  res.json({
+    status: 'Debug API Key Information',
+    environment: process.env.NODE_ENV || 'development',
+    request: {
+      hasApiKeyHeader: !!receivedKey,
+      apiKeyValue: receivedKey || 'NOT_PROVIDED',
+      apiKeyLength: receivedKey ? receivedKey.length : 0,
+      apiKeyType: typeof receivedKey,
+      firstChar: receivedKey ? receivedKey.charAt(0) : 'N/A',
+      lastChar: receivedKey ? receivedKey.charAt(receivedKey.length - 1) : 'N/A'
+    },
+    server: {
+      hasExpectedKey: !!expectedKey,
+      expectedKeyValue: expectedKey || 'NOT_SET',
+      expectedKeyLength: expectedKey ? expectedKey.length : 0,
+      expectedKeyType: typeof expectedKey,
+      firstChar: expectedKey ? expectedKey.charAt(0) : 'N/A',
+      lastChar: expectedKey ? expectedKey.charAt(expectedKey.length - 1) : 'N/A'
+    },
+    comparison: {
+      exactMatch: receivedKey === expectedKey,
+      bothExist: !!receivedKey && !!expectedKey,
+      lengthMatch: receivedKey && expectedKey ? receivedKey.length === expectedKey.length : false
+    },
+    allEnvVars: {
+      NODE_ENV: process.env.NODE_ENV,
+      hasMongoUri: !!process.env.MONGODB_ATLAS_URI,
+      hasApiSecret: !!process.env.API_SECRET,
+      apiSecretValue: process.env.API_SECRET || 'MISSING'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test endpoint without authentication
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Test endpoint working',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    hasApiSecret: !!process.env.API_SECRET
+  });
+});
+
 // Apply API key middleware to sensitive routes
 app.use('/api/blogs', apiKeyAuth, blogRoutes);
 app.use('/api/projects', apiKeyAuth, projectRoutes);
@@ -181,7 +257,11 @@ app.get('/api/health', async (req, res) => {
         host: mongoose.connection.host,
         name: mongoose.connection.name
       },
-      environment: process.env.NODE_ENV || 'development',
+      environment: {
+        nodeEnv: process.env.NODE_ENV || 'development',
+        hasApiSecret: !!process.env.API_SECRET,
+        hasMongoUri: !!process.env.MONGODB_ATLAS_URI
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -203,15 +283,19 @@ app.get('/', (req, res) => {
       projects: '/api/projects',
       services: '/api/services',
       teams: '/api/teams',
-      contact: '/api/contact', // Added contact endpoint
-      health: '/api/health'
-    }
+      contact: '/api/contact',
+      health: '/api/health',
+      test: '/api/test',
+      debugKey: '/api/debug-key'
+    },
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
   });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Error occurred:', err.stack);
   res.status(err.status || 500).json({
     message: err.message || 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.stack : {},
@@ -225,6 +309,16 @@ app.use((req, res) => {
     message: 'Route not found',
     path: req.path,
     method: req.method,
+    availableEndpoints: [
+      '/api/blogs',
+      '/api/projects', 
+      '/api/services',
+      '/api/teams',
+      '/api/contact',
+      '/api/health',
+      '/api/test',
+      '/api/debug-key'
+    ],
     timestamp: new Date().toISOString()
   });
 });
@@ -254,7 +348,12 @@ if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
+      console.log(`Test endpoint: http://localhost:${PORT}/api/test`);
+      console.log(`Debug API Key: http://localhost:${PORT}/api/debug-key`);
       console.log(`Contact API: http://localhost:${PORT}/api/contact`);
+      console.log('Environment variables status:');
+      console.log('- API_SECRET:', !!process.env.API_SECRET ? 'SET' : 'NOT SET');
+      console.log('- MONGODB_ATLAS_URI:', !!process.env.MONGODB_ATLAS_URI ? 'SET' : 'NOT SET');
     });
   });
 }

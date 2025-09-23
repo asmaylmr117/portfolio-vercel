@@ -1,4 +1,5 @@
 # Portfolio Backend API
+![Thehco](design.png)
 A modern backend API for the portfolio built with Express.js and MongoDB, optimized for deployment on Vercel with advanced security and performance features.
 
 ## 🚀 Features

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
@@ -7,31 +6,12 @@ const Project = require('../models/Project');
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, category, status, featured, search } = req.query;
-    const query = {};
-
-    if (category) query.category = new RegExp(category, 'i');
-    if (status) query.status = status;
-    if (featured !== undefined) query.featured = featured === 'true';
-    if (search) {
-      query.$or = [
-        { title: new RegExp(search, 'i') },
-        { description: new RegExp(search, 'i') },
-        { sub: new RegExp(search, 'i') }
-      ];
-    }
-
-    const projects = await Project.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Project.countDocuments(query);
-
+    const result = await Project.findAll({ page, limit, category, status, featured, search });
     res.json({
-      projects,
-      totalPages: Math.ceil(total / limit),
+      projects: result.rows,
+      totalPages: Math.ceil(result.total / limit),
       currentPage: page,
-      total
+      total: result.total
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -41,14 +21,8 @@ router.get('/', async (req, res) => {
 // GET single project by ID or slug
 router.get('/:id', async (req, res) => {
   try {
-    const project = await Project.findOne({
-      $or: [{ Id: req.params.id }, { slug: req.params.id }]
-    });
-    
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
+    const project = await Project.findByIdOrSlug(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
     res.json(project);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -58,8 +32,7 @@ router.get('/:id', async (req, res) => {
 // POST create new project
 router.post('/', async (req, res) => {
   try {
-    const project = new Project(req.body);
-    const newProject = await project.save();
+    const newProject = await Project.create(req.body);
     res.status(201).json(newProject);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -69,16 +42,8 @@ router.post('/', async (req, res) => {
 // PUT update project
 router.put('/:id', async (req, res) => {
   try {
-    const project = await Project.findOneAndUpdate(
-      { $or: [{ Id: req.params.id }, { slug: req.params.id }] },
-      req.body,
-      { new: true, runValidators: true }
-    );
-    
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
+    const project = await Project.updateByIdOrSlug(req.params.id, req.body);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
     res.json(project);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -88,14 +53,8 @@ router.put('/:id', async (req, res) => {
 // DELETE project
 router.delete('/:id', async (req, res) => {
   try {
-    const project = await Project.findOneAndDelete({
-      $or: [{ Id: req.params.id }, { slug: req.params.id }]
-    });
-    
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' });
-    }
-    
+    const project = await Project.deleteByIdOrSlug(req.params.id);
+    if (!project) return res.status(404).json({ message: 'Project not found' });
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -105,10 +64,7 @@ router.delete('/:id', async (req, res) => {
 // GET projects by category
 router.get('/category/:category', async (req, res) => {
   try {
-    const projects = await Project.find({ 
-      category: new RegExp(req.params.category, 'i') 
-    }).sort({ createdAt: -1 });
-    
+    const projects = await Project.findByCategory(req.params.category);
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -118,9 +74,7 @@ router.get('/category/:category', async (req, res) => {
 // GET featured projects
 router.get('/featured/all', async (req, res) => {
   try {
-    const projects = await Project.find({ featured: true })
-      .sort({ createdAt: -1 });
-    
+    const projects = await Project.findFeatured();
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -130,9 +84,7 @@ router.get('/featured/all', async (req, res) => {
 // GET projects by status
 router.get('/status/:status', async (req, res) => {
   try {
-    const projects = await Project.find({ status: req.params.status })
-      .sort({ createdAt: -1 });
-    
+    const projects = await Project.findByStatus(req.params.status);
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: error.message });

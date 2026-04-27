@@ -23,7 +23,6 @@ const validateContactForm = (req, res, next) => {
   const { name, email, phone, message } = req.body;
   const errors = [];
 
-  // Required fields validation
   if (!name || name.trim().length === 0) {
     errors.push('Name is required');
   } else if (name.trim().length > 100) {
@@ -51,7 +50,6 @@ const validateContactForm = (req, res, next) => {
     errors.push('Message cannot exceed 1000 characters');
   }
 
-  // Optional fields validation
   if (req.body.subject && req.body.subject.trim().length > 200) {
     errors.push('Subject cannot exceed 200 characters');
   }
@@ -77,11 +75,9 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
   try {
     const { name, email, phone, message, subject, company } = req.body;
 
-    // Get client info
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
     const userAgent = req.get('User-Agent') || 'unknown';
 
-    // Create new contact entry
     const contactData = {
       name: name.trim(),
       email: email.trim().toLowerCase(),
@@ -91,17 +87,10 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
       userAgent
     };
 
-    // Add optional fields if provided
-    if (subject && subject.trim()) {
-      contactData.subject = subject.trim();
-    }
+    if (subject && subject.trim()) contactData.subject = subject.trim();
+    if (company && company.trim()) contactData.company = company.trim();
 
-    if (company && company.trim()) {
-      contactData.company = company.trim();
-    }
-
-    const contact = new Contact(contactData);
-    const savedContact = await contact.save();
+    const savedContact = await Contact.create(contactData);
 
     console.log(`New contact submission from: ${email} at ${new Date().toISOString()}`);
 
@@ -109,7 +98,7 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
       success: true,
       message: 'Your message has been sent successfully! We will contact you soon.',
       data: {
-        id: savedContact._id,
+        id: savedContact.id,
         submittedAt: savedContact.createdAt
       },
       timestamp: new Date().toISOString()
@@ -118,19 +107,8 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
   } catch (error) {
     console.error('Contact form submission error:', error);
 
-    // Handle MongoDB validation errors
-    if (error.name === 'ValidationError') {
-      const validationErrors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Please correct the submitted data',
-        errors: validationErrors,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Handle duplicate email (if we add unique constraint later)
-    if (error.code === 11000) {
+    // Handle unique constraint violations
+    if (error.code === '23505') {
       return res.status(409).json({
         success: false,
         message: 'A message from this email address has already been submitted',
@@ -150,29 +128,15 @@ router.post('/', contactLimiter, validateContactForm, async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 10, status = 'all' } = req.query;
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Build query
-    let query = {};
-    if (status !== 'all') {
-      query.status = status;
-    }
-
-    const contacts = await Contact.find(query)
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit))
-      .skip(skip)
-      .select('-ipAddress -userAgent');
-
-    const total = await Contact.countDocuments(query);
+    const result = await Contact.findAll({ page, limit, status });
 
     res.json({
       success: true,
-      data: contacts,
+      data: result.rows,
       pagination: {
         current: parseInt(page),
-        pages: Math.ceil(total / parseInt(limit)),
-        total,
+        pages: Math.ceil(result.total / parseInt(limit)),
+        total: result.total,
         limit: parseInt(limit)
       },
       timestamp: new Date().toISOString()
@@ -202,11 +166,7 @@ router.put('/:id/status', async (req, res) => {
       });
     }
 
-    const contact = await Contact.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, runValidators: true }
-    ).select('-ipAddress -userAgent');
+    const contact = await Contact.updateStatus(id, status);
 
     if (!contact) {
       return res.status(404).json({
@@ -237,8 +197,7 @@ router.put('/:id/status', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-
-    const contact = await Contact.findByIdAndDelete(id);
+    const contact = await Contact.deleteById(id);
 
     if (!contact) {
       return res.status(404).json({

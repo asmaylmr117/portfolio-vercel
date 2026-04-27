@@ -8,7 +8,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "vercel-build": "echo 'Building for Vercel'"
   },
-  "keywords": ["portfolio", "api", "express", "mongodb"],
+  "keywords": [
+    "portfolio",
+    "api",
+    "express",
+    "postgresql",
+    "neon"
+  ],
   "author": "",
   "license": "ISC",
   "description": "Portfolio Backend API",
@@ -19,9 +25,9 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0",
-    "mongoose": "^8.17.1",
     "multer": "^2.0.2",
-    "path": "^0.12.7"
+    "path": "^0.12.7",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

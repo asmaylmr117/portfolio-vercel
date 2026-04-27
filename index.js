@@ -1,11 +1,12 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 require('dotenv').config();
+
+const { pool, initDB } = require('./db');
 
 // Import routes
 const blogRoutes = require('./routes/blogRoutes');
@@ -119,44 +120,31 @@ app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   }
 }));
 
-let cachedConnection = null;
-
-// Connect to MongoDB
+// Connect to PostgreSQL
+let dbInitialized = false;
 const connectDB = async () => {
-  if (cachedConnection) {
-    console.log('Using cached MongoDB connection');
-    return cachedConnection;
+  if (dbInitialized) {
+    console.log('Using cached PostgreSQL connection');
+    return;
   }
 
   try {
-    if (!process.env.MONGODB_ATLAS_URI) {
-      throw new Error('MONGODB_ATLAS_URI environment variable is not set');
+    if (!process.env.DATABASE_URL) {
+      throw new Error('DATABASE_URL environment variable is not set');
     }
 
-    const conn = await mongoose.connect(process.env.MONGODB_ATLAS_URI, {
-      dbName: 'portfolio',
-      serverSelectionTimeoutMS: 15000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 15000,
-      maxPoolSize: 3,
-      minPoolSize: 0,
-      maxIdleTimeMS: 30000,
-      retryWrites: true,
-      retryReads: true
-    });
+    // Test the connection
+    const res = await pool.query('SELECT NOW()');
+    console.log(`PostgreSQL Connected at: ${res.rows[0].now}`);
 
-    console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
-    cachedConnection = conn;
-    return conn;
+    // Initialize tables
+    await initDB();
+    dbInitialized = true;
   } catch (error) {
-    console.error('MongoDB Atlas connection error:', error.message);
+    console.error('PostgreSQL connection error:', error.message);
     throw error;
   }
 };
-
-mongoose.connection.on('connected', () => console.log('Mongoose connected to MongoDB Atlas'));
-mongoose.connection.on('error', (err) => console.error('Mongoose connection error:', err));
-mongoose.connection.on('disconnected', () => console.log('Mongoose disconnected from MongoDB Atlas'));
 
 // Debug endpoint for API key testing
 app.get('/api/debug-key', (req, res) => {
@@ -189,7 +177,7 @@ app.get('/api/debug-key', (req, res) => {
     },
     allEnvVars: {
       NODE_ENV: process.env.NODE_ENV,
-      hasMongoUri: !!process.env.MONGODB_ATLAS_URI,
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
       hasApiSecret: !!process.env.API_SECRET,
       apiSecretValue: process.env.API_SECRET || 'MISSING'
     },
@@ -233,34 +221,29 @@ app.use('/api/contact', (req, res, next) => {
 // Health check endpoint (unprotected for monitoring)
 app.get('/api/health', async (req, res) => {
   try {
-    const dbStatus = mongoose.connection.readyState;
-    const dbStatusText = {
-      0: 'disconnected',
-      1: 'connected',
-      2: 'connecting',
-      3: 'disconnecting'
-    };
     let dbTest = 'unknown';
+    let dbStatus = 'unknown';
     try {
-      await mongoose.connection.db.admin().ping();
-      dbTest = 'responsive';
+      const result = await pool.query('SELECT 1 AS alive');
+      dbTest = result.rows[0].alive === 1 ? 'responsive' : 'unresponsive';
+      dbStatus = 'connected';
     } catch (error) {
       dbTest = 'unresponsive';
+      dbStatus = 'disconnected';
     }
 
     res.json({
       status: 'OK',
       message: 'Server is running on Vercel',
       database: {
-        status: dbStatusText[dbStatus],
+        type: 'PostgreSQL (Neon)',
+        status: dbStatus,
         test: dbTest,
-        host: mongoose.connection.host,
-        name: mongoose.connection.name
       },
       environment: {
         nodeEnv: process.env.NODE_ENV || 'development',
         hasApiSecret: !!process.env.API_SECRET,
-        hasMongoUri: !!process.env.MONGODB_ATLAS_URI
+        hasDatabaseUrl: !!process.env.DATABASE_URL
       },
       timestamp: new Date().toISOString()
     });
@@ -278,6 +261,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Portfolio Backend API',
     version: '1.0.0',
+    database: 'PostgreSQL (Neon)',
     endpoints: {
       blogs: '/api/blogs',
       projects: '/api/projects',
@@ -326,8 +310,8 @@ app.use((req, res) => {
 // Graceful shutdown
 const gracefulShutdown = async () => {
   try {
-    await mongoose.connection.close();
-    console.log('MongoDB connection closed');
+    await pool.end();
+    console.log('PostgreSQL connection pool closed');
   } catch (error) {
     console.error('Error during shutdown:', error);
   }
@@ -353,7 +337,7 @@ if (process.env.NODE_ENV !== 'production') {
       console.log(`Contact API: http://localhost:${PORT}/api/contact`);
       console.log('Environment variables status:');
       console.log('- API_SECRET:', !!process.env.API_SECRET ? 'SET' : 'NOT SET');
-      console.log('- MONGODB_ATLAS_URI:', !!process.env.MONGODB_ATLAS_URI ? 'SET' : 'NOT SET');
+      console.log('- DATABASE_URL:', !!process.env.DATABASE_URL ? 'SET' : 'NOT SET');
     });
   });
 }

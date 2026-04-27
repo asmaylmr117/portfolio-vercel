@@ -1,90 +1,64 @@
-const mongoose = require('mongoose');
+const { query } = require('../db');
 
-const contactSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, 'Name is required'],
-    trim: true,
-    maxlength: [100, 'Name cannot exceed 100 characters']
-  },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    trim: true,
-    lowercase: true,
-    match: [
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-      'Please provide a valid email address'
-    ]
-  },
-  phone: {
-    type: String,
-    required: [true, 'Phone number is required'],
-    trim: true,
-    maxlength: [20, 'Phone number cannot exceed 20 characters']
-  },
-  subject: {
-    type: String,
-    trim: true,
-    maxlength: [200, 'Subject cannot exceed 200 characters']
-  },
-  company: {
-    type: String,
-    trim: true,
-    maxlength: [100, 'Company name cannot exceed 100 characters']
-  },
-  message: {
-    type: String,
-    required: [true, 'Message is required'],
-    trim: true,
-    maxlength: [1000, 'Message cannot exceed 1000 characters']
-  },
-  status: {
-    type: String,
-    enum: ['new', 'read', 'replied'],
-    default: 'new'
-  },
-  ipAddress: {
-    type: String,
-    trim: true
-  },
-  userAgent: {
-    type: String,
-    trim: true
-  }
-}, {
-  timestamps: true // Adds createdAt and updatedAt fields
-});
-
-// Index for efficient queries
-contactSchema.index({ email: 1, createdAt: -1 });
-contactSchema.index({ status: 1 });
-
-// Virtual for full contact info
-contactSchema.virtual('contactInfo').get(function() {
-  return {
-    id: this._id,
-    name: this.name,
-    email: this.email,
-    phone: this.phone,
-    subject: this.subject,
-    company: this.company,
-    message: this.message,
-    status: this.status,
-    submittedAt: this.createdAt
+const mapRow = (row) => {
+  if (!row) return null;
+  const mapped = {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    subject: row.subject,
+    company: row.company,
+    message: row.message,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
-});
+  // Virtual contactInfo
+  mapped.contactInfo = {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    subject: row.subject,
+    company: row.company,
+    message: row.message,
+    status: row.status,
+    submittedAt: row.created_at,
+  };
+  return mapped;
+};
 
-// Transform output
-contactSchema.set('toJSON', {
-  virtuals: true,
-  transform: function(doc, ret) {
-    delete ret._id;
-    delete ret.__v;
-    delete ret.ipAddress;
-    delete ret.userAgent;
-    return ret;
-  }
-});
+const Contact = {
+  async create(data) {
+    const r = await query(
+      `INSERT INTO contacts (name,email,phone,subject,company,message,status,ip_address,user_agent) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+      [data.name, data.email, data.phone, data.subject||null, data.company||null, data.message, data.status||'new', data.ipAddress||null, data.userAgent||null]
+    );
+    return mapRow(r.rows[0]);
+  },
+  async findAll({ page = 1, limit = 10, status } = {}) {
+    const conditions = []; const params = []; let pi = 1;
+    if (status && status !== 'all') { conditions.push(`status = $${pi++}`); params.push(status); }
+    const wh = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const dq = `SELECT id,name,email,phone,subject,company,message,status,created_at,updated_at FROM contacts ${wh} ORDER BY created_at DESC LIMIT $${pi++} OFFSET $${pi++}`;
+    params.push(parseInt(limit), parseInt(offset));
+    const cp = params.slice(0, params.length - 2);
+    const [dr, cr] = await Promise.all([query(dq, params), query(`SELECT COUNT(*) FROM contacts ${wh}`, cp)]);
+    return { rows: dr.rows.map(mapRow), total: parseInt(cr.rows[0].count) };
+  },
+  async updateStatus(id, status) {
+    const r = await query(
+      `UPDATE contacts SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id,name,email,phone,subject,company,message,status,created_at,updated_at`,
+      [status, parseInt(id)]
+    );
+    return r.rows.length > 0 ? mapRow(r.rows[0]) : null;
+  },
+  async deleteById(id) {
+    const r = await query(`DELETE FROM contacts WHERE id = $1 RETURNING *`, [parseInt(id)]);
+    return r.rows.length > 0 ? mapRow(r.rows[0]) : null;
+  },
+};
 
-module.exports = mongoose.model('Contact', contactSchema);
+module.exports = Contact;

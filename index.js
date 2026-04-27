@@ -14,6 +14,7 @@ const projectRoutes = require('./routes/projectRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const teamRoutes = require('./routes/teamRoutes');
 const contactRoutes = require('./routes/contactRoutes'); // Add contact routes
+const authRoutes = require('./routes/authRoutes'); // Dashboard auth routes
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -195,6 +196,9 @@ app.get('/api/test', (req, res) => {
   });
 });
 
+// Auth routes (no API key needed - uses JWT)
+app.use('/api/auth', authRoutes);
+
 // Apply API key middleware to sensitive routes
 app.use('/api/blogs', apiKeyAuth, blogRoutes);
 app.use('/api/projects', apiKeyAuth, projectRoutes);
@@ -263,6 +267,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     database: 'PostgreSQL (Neon)',
     endpoints: {
+      auth: { login: '/api/auth/login', register: '/api/auth/register', me: '/api/auth/me' },
       blogs: '/api/blogs',
       projects: '/api/projects',
       services: '/api/services',
@@ -294,6 +299,8 @@ app.use((req, res) => {
     path: req.path,
     method: req.method,
     availableEndpoints: [
+      '/api/auth/login',
+      '/api/auth/register',
       '/api/blogs',
       '/api/projects', 
       '/api/services',

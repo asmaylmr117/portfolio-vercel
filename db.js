@@ -145,6 +145,21 @@ const initDB = async () => {
       );
     `);
 
+    // Admins table (for dashboard authentication)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admins (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'admin',
+        is_active BOOLEAN DEFAULT true,
+        last_login TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // Create indexes
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_blogs_slug ON blogs(slug);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_blogs_author ON blogs(author);`);

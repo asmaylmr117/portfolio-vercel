@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "Portfolio Backend API",
+    "description": "Complete API collection for Portfolio Backend with Neon PostgreSQL",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000" },
+    { "key": "apiKey", "value": "devnity_api_key_2026_secure" },
+    { "key": "token", "value": "" }
+  ],
+  "auth": { "type": "apikey", "apikey": [{ "key": "key", "value": "X-API-Key" }, { "key": "value", "value": "{{apiKey}}" }, { "key": "in", "value": "header" }] },
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Admin\",\n  \"email\": \"admin@devnitycode.com\",\n  \"password\": \"Admin@123\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["var json = pm.response.json();", "if (json.data && json.data.token) { pm.collectionVariables.set('token', json.data.token); }"] } }]
+        },
+        {
+          "name": "Login Admin",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@devnitycode.com\",\n  \"password\": \"Admin@123\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["var json = pm.response.json();", "if (json.data && json.data.token) { pm.collectionVariables.set('token', json.data.token); }"] } }]
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/auth/me",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/auth/change-password",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{token}}" }],
+            "body": { "mode": "raw", "raw": "{\n  \"currentPassword\": \"Admin@123\",\n  \"newPassword\": \"NewAdmin@456\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Blogs",
+      "item": [
+        { "name": "Get All Blogs", "request": { "method": "GET", "url": "{{baseUrl}}/api/blogs" } },
+        { "name": "Get All Blogs (with search)", "request": { "method": "GET", "url": "{{baseUrl}}/api/blogs?search=web&page=1&limit=5" } },
+        { "name": "Get Blog by ID", "request": { "method": "GET", "url": "{{baseUrl}}/api/blogs/1" } },
+        { "name": "Get Blog by Slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/blogs/future-web-development-2026" } },
+        {
+          "name": "Create Blog",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/blogs",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"id\": \"7\",\n  \"title\": \"Test Blog Post\",\n  \"slug\": \"test-blog-post\",\n  \"screens\": \"/images/blog/blog_post_image_1.webp\",\n  \"bSingle\": \"/images/blog/blog_post_image_8.webp\",\n  \"description\": \"This is a test blog post\",\n  \"author\": \"Test Author\",\n  \"authorTitle\": \"Developer\",\n  \"create_at\": \"April 27, 2026\",\n  \"thumb\": \"Technology\"\n}" }
+          }
+        },
+        {
+          "name": "Update Blog",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/blogs/7",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated Blog Title\",\n  \"description\": \"Updated description\"\n}" }
+          }
+        },
+        { "name": "Delete Blog", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/blogs/7" } },
+        { "name": "Get Blogs by Category", "request": { "method": "GET", "url": "{{baseUrl}}/api/blogs/category/Technology" } },
+        { "name": "Get Recent Blogs", "request": { "method": "GET", "url": "{{baseUrl}}/api/blogs/recent/3" } }
+      ]
+    },
+    {
+      "name": "🚀 Projects",
+      "item": [
+        { "name": "Get All Projects", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects" } },
+        { "name": "Get All Projects (filtered)", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects?category=web&featured=true" } },
+        { "name": "Get Project by ID", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects/1" } },
+        { "name": "Get Project by Slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects/e-commerce-platform" } },
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/projects",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Id\": \"7\",\n  \"pImg\": \"/images/portfolio/portfolio_item_image_1.webp\",\n  \"title\": \"Test Project\",\n  \"slug\": \"test-project\",\n  \"sub\": \"Testing\",\n  \"description\": \"Test project description\",\n  \"Industry\": \"Technology\",\n  \"Country\": \"Iraq\",\n  \"Technologies1\": \"Node.js\",\n  \"Technologies2\": \"PostgreSQL\",\n  \"category\": \"web\",\n  \"featured\": true\n}" }
+          }
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/projects/7",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated Project\",\n  \"status\": \"completed\"\n}" }
+          }
+        },
+        { "name": "Delete Project", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/projects/7" } },
+        { "name": "Get Projects by Category", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects/category/web" } },
+        { "name": "Get Featured Projects", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects/featured/all" } },
+        { "name": "Get Projects by Status", "request": { "method": "GET", "url": "{{baseUrl}}/api/projects/status/completed" } }
+      ]
+    },
+    {
+      "name": "⚙️ Services",
+      "item": [
+        { "name": "Get All Services", "request": { "method": "GET", "url": "{{baseUrl}}/api/services" } },
+        { "name": "Get Service by ID", "request": { "method": "GET", "url": "{{baseUrl}}/api/services/1" } },
+        { "name": "Get Service by Slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/services/web-development" } },
+        {
+          "name": "Create Service",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/services",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Id\": \"7\",\n  \"sImg\": \"/images/services/service_image_1.webp\",\n  \"title\": \"Test Service\",\n  \"slug\": \"test-service\",\n  \"description\": \"Test service description\",\n  \"features\": [\"Feature 1\", \"Feature 2\"],\n  \"price\": 1000,\n  \"duration\": \"2-4 weeks\"\n}" }
+          }
+        },
+        {
+          "name": "Update Service",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/services/7",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Updated Service\",\n  \"price\": 2000\n}" }
+          }
+        },
+        { "name": "Delete Service", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/services/7" } },
+        { "name": "Get Popular Services", "request": { "method": "GET", "url": "{{baseUrl}}/api/services/popular/all" } },
+        { "name": "Get Active Services", "request": { "method": "GET", "url": "{{baseUrl}}/api/services/active/all" } },
+        { "name": "Toggle Service Status", "request": { "method": "POST", "url": "{{baseUrl}}/api/services/1/toggle-status" } }
+      ]
+    },
+    {
+      "name": "👥 Teams",
+      "item": [
+        { "name": "Get All Teams", "request": { "method": "GET", "url": "{{baseUrl}}/api/teams" } },
+        { "name": "Get Team Member by ID", "request": { "method": "GET", "url": "{{baseUrl}}/api/teams/1" } },
+        { "name": "Get Team Member by Slug", "request": { "method": "GET", "url": "{{baseUrl}}/api/teams/ahmed-hassan" } },
+        {
+          "name": "Create Team Member",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/teams",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"Id\": \"6\",\n  \"tImg\": \"/images/team/team_member_image_1.webp\",\n  \"name\": \"Test Member\",\n  \"slug\": \"test-member\",\n  \"title\": \"Junior Developer\",\n  \"email\": \"test@devnitycode.com\",\n  \"bio\": \"Test bio\",\n  \"skills\": [\"JavaScript\", \"React\"]\n}" }
+          }
+        },
+        {
+          "name": "Update Team Member",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/teams/6",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Senior Developer\",\n  \"experience\": 5\n}" }
+          }
+        },
+        { "name": "Delete Team Member", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/teams/6" } },
+        { "name": "Get by Position", "request": { "method": "GET", "url": "{{baseUrl}}/api/teams/position/CTO" } },
+        { "name": "Get Active Members", "request": { "method": "GET", "url": "{{baseUrl}}/api/teams/active/all" } },
+        { "name": "Toggle Member Status", "request": { "method": "POST", "url": "{{baseUrl}}/api/teams/1/toggle-status" } },
+        { "name": "Get Team Stats", "request": { "method": "GET", "url": "{{baseUrl}}/api/teams/stats/overview" } }
+      ]
+    },
+    {
+      "name": "📧 Contact",
+      "item": [
+        {
+          "name": "Submit Contact Form",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/contact",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Origin", "value": "https://software-company-mu.vercel.app" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"+964 770 000 0000\",\n  \"subject\": \"Project Inquiry\",\n  \"company\": \"Acme Corp\",\n  \"message\": \"I would like to discuss a web development project.\"\n}" }
+          }
+        },
+        { "name": "Get All Contacts", "request": { "method": "GET", "url": "{{baseUrl}}/api/contact?page=1&limit=10&status=all" } },
+        {
+          "name": "Update Contact Status",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/contact/1/status",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"read\"\n}" }
+          }
+        },
+        { "name": "Delete Contact", "request": { "method": "DELETE", "url": "{{baseUrl}}/api/contact/1" } }
+      ]
+    },
+    {
+      "name": "🏥 Health & Debug",
+      "item": [
+        { "name": "Root Endpoint", "request": { "method": "GET", "url": "{{baseUrl}}/" } },
+        { "name": "Health Check", "request": { "method": "GET", "url": "{{baseUrl}}/api/health" } },
+        { "name": "Test Endpoint", "request": { "method": "GET", "url": "{{baseUrl}}/api/test" } },
+        { "name": "Debug API Key", "request": { "method": "GET", "url": "{{baseUrl}}/api/debug-key" } }
+      ]
+    }
+  ]
+}

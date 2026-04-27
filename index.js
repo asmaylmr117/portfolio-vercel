@@ -24,13 +24,25 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", 'https://software-company-mu.vercel.app'],
+      connectSrc: ["'self'", 'https://software-company-mu.vercel.app', 'http://localhost:3000'],
     },
   },
 })); // Secure headers with Content Security Policy
 app.use(compression()); // Compress responses for performance
+
+const allowedOrigins = [
+  'https://software-company-mu.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
 app.use(cors({
-  origin: 'https://software-company-mu.vercel.app', // Allow only frontend origin
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
@@ -51,10 +63,14 @@ app.use('/api/', limiter);
 // API key authentication middleware with enhanced debugging
 const apiKeyAuth = (req, res, next) => {
   const origin = req.get('Origin') || req.get('Referer');
-  const allowedOrigin = 'https://software-company-mu.vercel.app';
+  const trustedOrigins = [
+    'https://software-company-mu.vercel.app',
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ];
 
   // Allow requests from the frontend without API key
-  if (origin && origin.startsWith(allowedOrigin)) {
+  if (origin && trustedOrigins.some(o => origin.startsWith(o))) {
     console.log(`Access granted for frontend origin: ${origin}`);
     return next();
   }
@@ -210,9 +226,13 @@ app.use('/api/contact', (req, res, next) => {
   // Allow POST requests from frontend without API key for contact form submission
   if (req.method === 'POST') {
     const origin = req.get('Origin') || req.get('Referer');
-    const allowedOrigin = 'https://software-company-mu.vercel.app';
+    const trustedOrigins = [
+      'https://software-company-mu.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ];
     
-    if (origin && origin.startsWith(allowedOrigin)) {
+    if (origin && trustedOrigins.some(o => origin.startsWith(o))) {
       console.log(`Contact form submission allowed from frontend: ${origin}`);
       return next(); // Skip API key check for frontend POST requests
     }

@@ -21,12 +21,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", 'https://software-company-mu.vercel.app', 'http://localhost:3000',"http://localhost:5173"],
-    },
-  },
+  contentSecurityPolicy: false
 })); // Secure headers with Content Security Policy
 app.use(compression()); // Compress responses for performance
 

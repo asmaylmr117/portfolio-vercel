@@ -21,7 +21,12 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(helmet({
-  contentSecurityPolicy: false
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      connectSrc: ["*"],
+    },
+  },
 })); // Secure headers with Content Security Policy
 app.use(compression()); // Compress responses for performance
 

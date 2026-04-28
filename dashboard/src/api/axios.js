@@ -1,8 +1,13 @@
 import axios from 'axios';
 
+// Use local backend for development, and Vercel backend for production
+const baseURL = import.meta.env.DEV 
+  ? 'http://localhost:5000/api' 
+  : 'https://portfolio-vercel-bi43.vercel.app/api';
+
 // Create an Axios instance
 const api = axios.create({
-  baseURL: 'https://portfolio-vercel-bi43.vercel.app/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

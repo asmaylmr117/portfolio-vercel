@@ -34,6 +34,7 @@ const allowedOrigins = [
   'https://software-company-mu.vercel.app',
   'http://localhost:3000',
   'http://localhost:3001',
+  'http://localhost:5173',
 ];
 
 app.use(cors({
@@ -67,6 +68,7 @@ const apiKeyAuth = (req, res, next) => {
     'https://software-company-mu.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001',
+    'http://localhost:5173',
   ];
 
   // Allow requests from the frontend without API key
@@ -230,6 +232,7 @@ app.use('/api/contact', (req, res, next) => {
       'https://software-company-mu.vercel.app',
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:5173',
     ];
     
     if (origin && trustedOrigins.some(o => origin.startsWith(o))) {

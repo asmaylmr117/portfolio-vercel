@@ -130,8 +130,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Serve static images
 app.use('/images', express.static(path.join(__dirname, 'public/images'), {
-  setHeaders: (res) => {
-    res.setHeader('Access-Control-Allow-Origin', 'https://software-company-mu.vercel.app');
+  setHeaders: (res, path, stat) => {
+    
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Cache-Control', 'public, max-age=31536000');

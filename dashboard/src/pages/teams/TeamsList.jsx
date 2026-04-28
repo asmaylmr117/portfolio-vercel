@@ -184,8 +184,8 @@ const TeamModal = ({ team, onClose }) => {
           <div className="absolute inset-0 bg-gray-900 opacity-75"></div>
         </div>
 
-        <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200">
+        <div className="relative z-10 flex flex-col bg-white rounded-xl text-left shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-200 flex-shrink-0">
             <div className="flex items-center justify-between">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 {team ? 'Edit Team Member' : 'Add New Team Member'}
@@ -196,9 +196,10 @@ const TeamModal = ({ team, onClose }) => {
             </div>
           </div>
           
-          <form onSubmit={handleSubmit(onSubmit)} className="px-4 py-5 sm:p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="px-4 py-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">Team Member ID (Unique)</label>
                 <input {...register('Id', { required: true })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" />
               </div>
@@ -249,8 +250,9 @@ const TeamModal = ({ team, onClose }) => {
                 </div>
               </div>
             </div>
+            </div>
             
-            <div className="mt-5 sm:mt-6 sm:flex sm:flex-row-reverse border-t border-gray-200 pt-4">
+            <div className="px-4 py-4 sm:px-6 sm:flex sm:flex-row-reverse border-t border-gray-200 bg-gray-50 flex-shrink-0 rounded-b-xl">
               <button
                 type="submit"
                 disabled={mutation.isPending}

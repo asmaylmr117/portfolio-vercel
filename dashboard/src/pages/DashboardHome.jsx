@@ -5,11 +5,21 @@ import api from '../api/axios';
 
 const DashboardHome = () => {
   // Fetch stats (we can use the total counts from the list endpoints)
-  const { data: services } = useQuery({ queryKey: ['services'], queryFn: () => api.get('/services').then(res => res.data) });
+  
   const { data: projects } = useQuery({ queryKey: ['projects'], queryFn: () => api.get('/projects').then(res => res.data) });
   const { data: blogs } = useQuery({ queryKey: ['blogs'], queryFn: () => api.get('/blogs').then(res => res.data) });
   const { data: teams } = useQuery({ queryKey: ['teams'], queryFn: () => api.get('/teams').then(res => res.data) });
+const { data: services } = useQuery({ 
+  queryKey: ['services'], 
+  queryFn: () => api.get('/services').then(res => res.data) 
+});
 
+// أضف هذا مباشرة بعد الـ queries:
+console.log('=== Dashboard Debug ===');
+console.log('services:', services);
+console.log('projects:', projects);
+console.log('blogs:', blogs);
+console.log('teams:', teams);
   const stats = [
     { name: 'Total Services', value: services?.total || 0, icon: Briefcase, color: 'bg-blue-500' },
     { name: 'Total Projects', value: projects?.total || 0, icon: FolderKanban, color: 'bg-emerald-500' },

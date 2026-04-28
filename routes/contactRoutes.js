@@ -8,7 +8,6 @@ const router = express.Router();
 const contactLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // Max 5 submissions per 15 minutes per IP
-  keyGenerator: (req) => req.ip,
   message: {
     success: false,
     message: 'Too many contact submissions. Please try again after 15 minutes.',

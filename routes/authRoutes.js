@@ -175,6 +175,7 @@ router.post('/login', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during login',
+      error: error.message, // Added for debugging
       timestamp: new Date().toISOString()
     });
   }

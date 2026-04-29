@@ -41,7 +41,7 @@ app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, origin);
     return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
   },
   credentials: true,
@@ -49,7 +49,10 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
   optionsSuccessStatus: 200
 }));
-
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

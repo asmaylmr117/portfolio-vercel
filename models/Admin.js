@@ -61,6 +61,15 @@ const Admin = {
     );
   },
 
+  // Update profile details (name and email)
+  async updateProfile(id, name, email) {
+    const r = await query(
+      `UPDATE admins SET name = $1, email = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+      [name, email.toLowerCase(), parseInt(id)]
+    );
+    return r.rows.length > 0 ? mapRow(r.rows[0]) : null;
+  },
+
   // Change password
   async changePassword(id, newPassword) {
     const salt = await bcrypt.genSalt(12);

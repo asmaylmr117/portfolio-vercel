@@ -190,6 +190,80 @@ router.get('/me', authMiddleware, async (req, res) => {
   });
 });
 
+// PUT /api/auth/profile - Update admin profile (name and email)
+router.put('/profile', authMiddleware, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    if (!name || !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide name and email',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Check if the new email is already used by another admin
+    if (email.toLowerCase() !== req.admin.email.toLowerCase()) {
+      const existingAdmin = await Admin.findByEmail(email);
+      if (existingAdmin) {
+        return res.status(400).json({
+          success: false,
+          message: 'An admin with this email already exists',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    // Update profile
+    const updatedAdmin = await Admin.updateProfile(req.admin.id, name, email);
+    
+    if (!updatedAdmin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Generate new token since email is part of the payload
+    const token = generateToken(updatedAdmin);
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        admin: {
+          id: updatedAdmin.id,
+          name: updatedAdmin.name,
+          email: updatedAdmin.email,
+          role: updatedAdmin.role,
+        },
+        token
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Update profile error:', error);
+    
+    if (error.code === '23505') {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already exists',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Server error during profile update',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // PUT /api/auth/change-password - Change password (protected)
 router.put('/change-password', authMiddleware, async (req, res) => {
   try {

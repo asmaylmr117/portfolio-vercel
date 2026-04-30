@@ -9,6 +9,8 @@ import ServicesList from './pages/services/ServicesList';
 import ProjectsList from './pages/projects/ProjectsList';
 import BlogsList from './pages/blogs/BlogsList';
 import TeamsList from './pages/teams/TeamsList';
+import ContactsList from './pages/contacts/ContactsList';
+import Settings from './pages/Settings';
 
 const ProtectedRoute = ({ children }) => {
   const { admin, loading } = useAuth();
@@ -36,6 +38,8 @@ function App() {
           <Route path="projects" element={<ProjectsList />} />
           <Route path="blogs" element={<BlogsList />} />
           <Route path="teams" element={<TeamsList />} />
+          <Route path="contacts" element={<ContactsList />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </>

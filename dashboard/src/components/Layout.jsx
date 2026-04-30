@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, Users, FolderKanban, FileText, Settings, LogOut, Menu, X, Briefcase } from 'lucide-react';
+import { LayoutDashboard, Users, FolderKanban, FileText, Settings, LogOut, Menu, X, Briefcase, MessageSquare } from 'lucide-react';
 import clsx from 'clsx';
 
 const Layout = () => {
@@ -15,6 +15,8 @@ const Layout = () => {
     { name: 'Projects', href: '/projects', icon: FolderKanban },
     { name: 'Blogs', href: '/blogs', icon: FileText },
     { name: 'Teams', href: '/teams', icon: Users },
+    { name: 'Contacts', href: '/contacts', icon: MessageSquare },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   return (

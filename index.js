@@ -68,6 +68,7 @@ const apiKeyAuth = (req, res, next) => {
   const origin = req.get('Origin') || req.get('Referer');
   const trustedOrigins = [
     'https://software-company-mu.vercel.app',
+    'https://portfolio-vercel-bi43.vercel.app',
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:5173',

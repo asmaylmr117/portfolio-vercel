@@ -1,16 +1,14 @@
 import axios from 'axios';
 
-// Always use Vercel backend
-const baseURL = 'https://portfolio-vercel-bi43.vercel.app/api';
-
-// Create an Axios instance
 const api = axios.create({
-  baseURL,
+  baseURL: 'https://portfolio-vercel-bi43.vercel.app/api',
   headers: {
     'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   },
 });
-
 // Add a request interceptor to attach the JWT token
 api.interceptors.request.use(
   (config) => {

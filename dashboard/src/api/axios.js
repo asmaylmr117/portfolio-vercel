@@ -6,29 +6,43 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache',
-    'Expires': '0'
   },
 });
-// Add a request interceptor to attach the JWT token
+
+// Prevent browser caching issues (optional but helpful)
 api.interceptors.request.use(
   (config) => {
+    // Add cache buster
+    config.params = {
+      ...config.params,
+      _t: Date.now(),
+    };
+
+    // Attach JWT token
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // IMPORTANT: avoid sending problematic headers if browser adds them
+    if (config.headers) {
+      delete config.headers['cache-control'];
+      delete config.headers['pragma'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Add a response interceptor to handle token expiration/unauthorized errors
+// Response interceptor
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear token and redirect to login
       localStorage.removeItem('token');
       localStorage.removeItem('admin');
+
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

@@ -178,21 +178,6 @@ The API uses API Key Authentication for security:
 - **Static File Caching**: 1-year cache for images
 - **Graceful Shutdown**: Proper cleanup on termination
 
-### MongoDB Configuration
-```javascript
-{
-  dbName: 'portfolio',
-  serverSelectionTimeoutMS: 15000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 15000,
-  maxPoolSize: 3,
-  minPoolSize: 0,
-  maxIdleTimeMS: 30000,
-  retryWrites: true,
-  retryReads: true
-}
-```
-
 ## 📊 Monitoring & Diagnostics
 ### Health Check Endpoint
 ```bash

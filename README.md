@@ -1,11 +1,10 @@
 # Portfolio Backend API
-![Thehco](design.png)
+![Thehco](Untitled.png)
 A modern backend API for the portfolio built with Express.js and MongoDB, optimized for deployment on Vercel with advanced security and performance features.
 
 ## 🚀 Features
 - **Express.js**: Fast and flexible Node.js framework
-- **MongoDB Atlas**: Cloud-based database with connection pooling
-- **Mongoose**: ODM for MongoDB with advanced configurations
+- **Postgersql-Neondb**: Cloud-based database with connection pooling
 - **Security**: Helmet, CORS, Rate Limiting, API Key Authentication
 - **Performance**: Compression, Caching, Connection Pooling
 - **Vercel Ready**: Fully optimized for serverless deployment
@@ -58,7 +57,7 @@ portfolio-backend/
    ```
    Update values in `.env`:
    ```env
-   MONGODB_ATLAS_URI=mongodb+srv://username:password@cluster.mongodb.net/portfolio
+  
    API_SECRET=your-secure-api-key-here
    PORT=5000
    NODE_ENV=development
@@ -163,13 +162,6 @@ The API uses API Key Authentication for security:
    vercel --prod
    ```
 
-### Required Environment Variables on Vercel
-Critical: Add these in Vercel Dashboard → Settings → Environment Variables
-```env
-MONGODB_ATLAS_URI=mongodb+srv://username:password@cluster.mongodb.net/portfolio
-API_SECRET=your-secure-api-key-here
-NODE_ENV=production
-```
 **Important**: After adding environment variables, you MUST redeploy the application!
 
 ## 🔧 Advanced Configuration

@@ -32,9 +32,7 @@ app.use(compression()); // Compress responses for performance
 
 const allowedOrigins = [
   'https://software-company-mu.vercel.app',
-  'http://localhost:3000',
-  'http://localhost:3001',
-  'http://localhost:5173',
+  'https://portfolio-admin-ashy-psi.vercel.app/',
 ];
 
 app.use(cors({
@@ -66,9 +64,7 @@ const apiKeyAuth = (req, res, next) => {
   const trustedOrigins = [
     'https://software-company-mu.vercel.app',
     'https://portfolio-vercel-bi43.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:5173',
+     'https://portfolio-admin-ashy-psi.vercel.app',
   ];
 
   // Allow requests from the frontend without API key
@@ -231,9 +227,7 @@ app.use('/api/contact', (req, res, next) => {
     const origin = req.get('Origin') || req.get('Referer');
     const trustedOrigins = [
       'https://software-company-mu.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:5173',
+       'https://portfolio-admin-ashy-psi.vercel.app',
     ];
     
     if (origin && trustedOrigins.some(o => origin.startsWith(o))) {

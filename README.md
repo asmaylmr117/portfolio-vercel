@@ -10,33 +10,7 @@ A modern backend API for the portfolio built with Express.js and MongoDB, optimi
 - **Vercel Ready**: Fully optimized for serverless deployment
 - **Debug Tools**: Built-in debugging endpoints for development
 
-## 📁 Project Structure
-```
-portfolio-backend/
-├── server.js             # Main server file (updated)
-├── package.json          # Dependencies & scripts
-├── vercel.json           # Vercel deployment settings
-├── .env.example          # Example environment variables
-├── .vercelignore         # Files to ignore during deployment
-├── routes/               # API routes
-│   ├── blogRoutes.js     # Blog CRUD operations
-│   ├── projectRoutes.js  # Projects CRUD operations
-│   ├── serviceRoutes.js  # Services CRUD operations
-│   ├── teamRoutes.js     # Team members CRUD operations
-│   └── contactRoutes.js  # Contact form handling
-├── models/               # Mongoose database models
-│   ├── Blog.js           # Blog post model
-│   ├── Project.js        # Project model
-│   ├── Service.js        # Service model
-│   ├── Team.js           # Team member model
-│   └── Contact.js        # Contact form model
-├── middleware/           # Custom middleware
-│   └── auth.js           # API key authentication
-├── config/               # Configuration files
-│   └── database.js       # MongoDB connection config
-└── public/              # Static files
-    └── images/          # Static images with CORS headers
-```
+
 
 ## 🛠️ Installation & Local Development
 1. **Clone the repository**

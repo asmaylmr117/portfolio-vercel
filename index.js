@@ -32,7 +32,7 @@ app.use(compression()); // Compress responses for performance
 
 const allowedOrigins = [
   'https://software-company-mu.vercel.app',
-  'https://portfolio-admin-ashy-psi.vercel.app/',
+  'https://portfolio-admin-ashy-psi.vercel.app',
 ];
 
 app.use(cors({

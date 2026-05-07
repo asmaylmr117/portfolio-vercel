@@ -60,7 +60,7 @@ app.use('/api/', limiter);
 
 // API key authentication middleware with enhanced debugging
 const apiKeyAuth = (req, res, next) => {
-  const origin = req.get('Origin') || req.get('Referer');
+  const origin = req.headers.origin;
   const trustedOrigins = [
     'https://software-company-mu.vercel.app',
     'https://portfolio-vercel-bi43.vercel.app',
@@ -68,10 +68,13 @@ const apiKeyAuth = (req, res, next) => {
   ];
 
   // Allow requests from the frontend without API key
-  if (origin && trustedOrigins.some(o => origin.startsWith(o))) {
-    console.log(`Access granted for frontend origin: ${origin}`);
-    return next();
-  }
+  if (
+  origin &&
+  trustedOrigins.includes(origin)
+) {
+  console.log(`Access granted for frontend origin: ${origin}`);
+  return next();
+}
 
   const apiKey = req.get('X-API-Key');
   const expectedKey = process.env.API_SECRET;

@@ -13,11 +13,27 @@ const blogRoutes = require('./routes/blogRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const teamRoutes = require('./routes/teamRoutes');
-const contactRoutes = require('./routes/contactRoutes'); // Add contact routes
-const authRoutes = require('./routes/authRoutes'); // Dashboard auth routes
+const contactRoutes = require('./routes/contactRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// ✅ Handle OPTIONS preflight requests FIRST before any middleware
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://software-company-mu.vercel.app',
+    'https://portfolio-admin-ashy-psi.vercel.app',
+  ];
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key, Cache-Control, Pragma');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
 
 // Middleware
 app.use(helmet({
@@ -27,8 +43,8 @@ app.use(helmet({
       connectSrc: ["*"],
     },
   },
-})); // Secure headers with Content Security Policy
-app.use(compression()); // Compress responses for performance
+}));
+app.use(compression());
 
 const allowedOrigins = [
   'https://software-company-mu.vercel.app',
@@ -37,83 +53,67 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, origin);
     return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'Cache-Control','Pragma'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'Cache-Control', 'Pragma'],
   optionsSuccessStatus: 200
 }));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 200 : 100, // Max requests
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'production' ? 200 : 100,
   message: 'Too many requests from this source',
   standardHeaders: true,
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
 
-// API key authentication middleware with enhanced debugging
+// API key authentication middleware
 const apiKeyAuth = (req, res, next) => {
   const origin = req.headers.origin;
   const trustedOrigins = [
     'https://software-company-mu.vercel.app',
     'https://portfolio-vercel-bi43.vercel.app',
-     'https://portfolio-admin-ashy-psi.vercel.app',
+    'https://portfolio-admin-ashy-psi.vercel.app',
   ];
 
-  // Allow requests from the frontend without API key
-  if (
-  origin &&
-  trustedOrigins.includes(origin)
-) {
-  console.log(`Access granted for frontend origin: ${origin}`);
-  return next();
-}
+  if (origin && trustedOrigins.includes(origin)) {
+    console.log(`Access granted for frontend origin: ${origin}`);
+    return next();
+  }
 
   const apiKey = req.get('X-API-Key');
   const expectedKey = process.env.API_SECRET;
-  
-  // Enhanced debugging logs
+
   console.log('=== API KEY DEBUG ===');
   console.log('Request IP:', req.ip);
   console.log('Request Origin:', origin || 'not provided');
   console.log('Received API Key:', apiKey ? `"${apiKey}"` : 'undefined');
   console.log('Expected API Key exists:', !!expectedKey);
-  console.log('Expected API Key:', expectedKey ? `"${expectedKey}"` : 'undefined');
   console.log('Keys match exactly:', apiKey === expectedKey);
-  console.log('Received key length:', apiKey ? apiKey.length : 0);
-  console.log('Expected key length:', expectedKey ? expectedKey.length : 0);
   console.log('====================');
 
   if (!apiKey) {
     console.warn(`Access attempt without API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
     return res.status(401).json({
       message: 'API key is missing',
-      debug: {
-        hasApiKey: false,
-        hasExpectedKey: !!expectedKey,
-        origin: origin || 'unknown'
-      },
+      debug: { hasApiKey: false, hasExpectedKey: !!expectedKey, origin: origin || 'unknown' },
       timestamp: new Date().toISOString()
     });
   }
 
   if (apiKey !== expectedKey) {
-    console.warn(`Access attempt with invalid API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
-    console.warn(`Received: "${apiKey}" vs Expected: "${expectedKey}"`);
+    console.warn(`Access attempt with invalid API key from IP: ${req.ip}`);
     return res.status(401).json({
       message: 'Invalid API key',
       debug: {
         receivedKeyLength: apiKey.length,
         expectedKeyLength: expectedKey ? expectedKey.length : 0,
-        receivedFirst3: apiKey.substring(0, 3),
-        expectedFirst3: expectedKey ? expectedKey.substring(0, 3) : 'N/A',
         keysMatch: apiKey === expectedKey,
         hasExpectedKey: !!expectedKey
       },
@@ -121,7 +121,7 @@ const apiKeyAuth = (req, res, next) => {
     });
   }
 
-  console.log(`API key verified successfully from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
+  console.log(`API key verified successfully from IP: ${req.ip}`);
   next();
 };
 
@@ -131,7 +131,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Serve static images
 app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   setHeaders: (res, path, stat) => {
-    
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -151,12 +150,8 @@ const connectDB = async () => {
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is not set');
     }
-
-    // Test the connection
     const res = await pool.query('SELECT NOW()');
     console.log(`PostgreSQL Connected at: ${res.rows[0].now}`);
-
-    // Initialize tables
     await initDB();
     dbInitialized = true;
   } catch (error) {
@@ -165,11 +160,11 @@ const connectDB = async () => {
   }
 };
 
-// Debug endpoint for API key testing
+// Debug endpoint
 app.get('/api/debug-key', (req, res) => {
   const receivedKey = req.get('X-API-Key');
   const expectedKey = process.env.API_SECRET;
-  
+
   res.json({
     status: 'Debug API Key Information',
     environment: process.env.NODE_ENV || 'development',
@@ -177,34 +172,25 @@ app.get('/api/debug-key', (req, res) => {
       hasApiKeyHeader: !!receivedKey,
       apiKeyValue: receivedKey || 'NOT_PROVIDED',
       apiKeyLength: receivedKey ? receivedKey.length : 0,
-      apiKeyType: typeof receivedKey,
-      firstChar: receivedKey ? receivedKey.charAt(0) : 'N/A',
-      lastChar: receivedKey ? receivedKey.charAt(receivedKey.length - 1) : 'N/A'
     },
     server: {
       hasExpectedKey: !!expectedKey,
-      expectedKeyValue: expectedKey || 'NOT_SET',
       expectedKeyLength: expectedKey ? expectedKey.length : 0,
-      expectedKeyType: typeof expectedKey,
-      firstChar: expectedKey ? expectedKey.charAt(0) : 'N/A',
-      lastChar: expectedKey ? expectedKey.charAt(expectedKey.length - 1) : 'N/A'
     },
     comparison: {
       exactMatch: receivedKey === expectedKey,
       bothExist: !!receivedKey && !!expectedKey,
-      lengthMatch: receivedKey && expectedKey ? receivedKey.length === expectedKey.length : false
     },
     allEnvVars: {
       NODE_ENV: process.env.NODE_ENV,
       hasDatabaseUrl: !!process.env.DATABASE_URL,
       hasApiSecret: !!process.env.API_SECRET,
-      apiSecretValue: process.env.API_SECRET || 'MISSING'
     },
     timestamp: new Date().toISOString()
   });
 });
 
-// Test endpoint without authentication
+// Test endpoint
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Test endpoint working',
@@ -214,36 +200,32 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Auth routes (no API key needed - uses JWT)
+// Auth routes
 app.use('/api/auth', authRoutes);
 
-// Apply API key middleware to sensitive routes
+// Protected routes
 app.use('/api/blogs', apiKeyAuth, blogRoutes);
 app.use('/api/projects', apiKeyAuth, projectRoutes);
 app.use('/api/services', apiKeyAuth, serviceRoutes);
 app.use('/api/teams', apiKeyAuth, teamRoutes);
 
-// Contact route - Special handling for POST requests from frontend
+// Contact route
 app.use('/api/contact', (req, res, next) => {
-  // Allow POST requests from frontend without API key for contact form submission
   if (req.method === 'POST') {
     const origin = req.get('Origin') || req.get('Referer');
     const trustedOrigins = [
       'https://software-company-mu.vercel.app',
-       'https://portfolio-admin-ashy-psi.vercel.app',
+      'https://portfolio-admin-ashy-psi.vercel.app',
     ];
-    
     if (origin && trustedOrigins.some(o => origin.startsWith(o))) {
       console.log(`Contact form submission allowed from frontend: ${origin}`);
-      return next(); // Skip API key check for frontend POST requests
+      return next();
     }
   }
-  
-  // Apply API key authentication for all other methods (GET, PUT, DELETE) or external sources
   return apiKeyAuth(req, res, next);
 }, contactRoutes);
 
-// Health check endpoint (unprotected for monitoring)
+// Health check
 app.get('/api/health', async (req, res) => {
   try {
     let dbTest = 'unknown';
@@ -256,15 +238,10 @@ app.get('/api/health', async (req, res) => {
       dbTest = 'unresponsive';
       dbStatus = 'disconnected';
     }
-
     res.json({
       status: 'OK',
       message: 'Server is running on Vercel',
-      database: {
-        type: 'PostgreSQL (Neon)',
-        status: dbStatus,
-        test: dbTest,
-      },
+      database: { type: 'PostgreSQL (Neon)', status: dbStatus, test: dbTest },
       environment: {
         nodeEnv: process.env.NODE_ENV || 'development',
         hasApiSecret: !!process.env.API_SECRET,
@@ -273,15 +250,11 @@ app.get('/api/health', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    res.status(500).json({
-      status: 'ERROR',
-      message: error.message,
-      timestamp: new Date().toISOString()
-    });
+    res.status(500).json({ status: 'ERROR', message: error.message, timestamp: new Date().toISOString() });
   }
 });
 
-// Root endpoint (unprotected)
+// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'Portfolio Backend API',
@@ -319,18 +292,6 @@ app.use((req, res) => {
     message: 'Route not found',
     path: req.path,
     method: req.method,
-    availableEndpoints: [
-      '/api/auth/login',
-      '/api/auth/register',
-      '/api/blogs',
-      '/api/projects', 
-      '/api/services',
-      '/api/teams',
-      '/api/contact',
-      '/api/health',
-      '/api/test',
-      '/api/debug-key'
-    ],
     timestamp: new Date().toISOString()
   });
 });
@@ -361,8 +322,6 @@ if (process.env.NODE_ENV !== 'production') {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
       console.log(`Test endpoint: http://localhost:${PORT}/api/test`);
-      console.log(`Debug API Key: http://localhost:${PORT}/api/debug-key`);
-      console.log(`Contact API: http://localhost:${PORT}/api/contact`);
       console.log('Environment variables status:');
       console.log('- API_SECRET:', !!process.env.API_SECRET ? 'SET' : 'NOT SET');
       console.log('- DATABASE_URL:', !!process.env.DATABASE_URL ? 'SET' : 'NOT SET');

@@ -19,13 +19,16 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Handle OPTIONS preflight requests FIRST before any middleware
+// ✅ قائمة موحدة للـ origins المسموح بها
+const allowedOrigins = [
+  'https://software-company-mu.vercel.app',
+  'https://portfolio-admin-ashy-psi.vercel.app',
+  'https://portfolio-vercel-bi43.vercel.app',
+];
+
+// ✅ Handle OPTIONS preflight requests FIRST
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://software-company-mu.vercel.app',
-    'https://portfolio-admin-ashy-psi.vercel.app',
-  ];
   if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
@@ -45,11 +48,6 @@ app.use(helmet({
   },
 }));
 app.use(compression());
-
-const allowedOrigins = [
-  'https://software-company-mu.vercel.app',
-  'https://portfolio-admin-ashy-psi.vercel.app',
-];
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -73,16 +71,11 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// API key authentication middleware
+// ✅ API key authentication middleware — يستخدم نفس قائمة allowedOrigins
 const apiKeyAuth = (req, res, next) => {
   const origin = req.headers.origin;
-  const trustedOrigins = [
-    'https://software-company-mu.vercel.app',
-    'https://portfolio-vercel-bi43.vercel.app',
-    'https://portfolio-admin-ashy-psi.vercel.app',
-  ];
 
-  if (origin && trustedOrigins.includes(origin)) {
+  if (origin && allowedOrigins.includes(origin)) {
     console.log(`Access granted for frontend origin: ${origin}`);
     return next();
   }
@@ -213,11 +206,7 @@ app.use('/api/teams', apiKeyAuth, teamRoutes);
 app.use('/api/contact', (req, res, next) => {
   if (req.method === 'POST') {
     const origin = req.get('Origin') || req.get('Referer');
-    const trustedOrigins = [
-      'https://software-company-mu.vercel.app',
-      'https://portfolio-admin-ashy-psi.vercel.app',
-    ];
-    if (origin && trustedOrigins.some(o => origin.startsWith(o))) {
+    if (origin && allowedOrigins.some(o => origin.startsWith(o))) {
       console.log(`Contact form submission allowed from frontend: ${origin}`);
       return next();
     }

@@ -8,7 +8,6 @@ require('dotenv').config();
 
 const { pool, initDB } = require('./db');
 
-// Import routes
 const blogRoutes = require('./routes/blogRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
@@ -19,14 +18,32 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Handle OPTIONS preflight requests FIRST before any middleware
+// ✅ Origins ثابتة
+const allowedOrigins = [
+  'https://software-company-mu.vercel.app',
+  'https://portfolio-admin-ashy-psi.vercel.app',
+  'https://portfolio-vercel-bi43.vercel.app',
+];
+
+// ✅ Patterns للـ preview URLs الديناميكية
+const allowedPatterns = [
+  /^https:\/\/portfolio-vercel-bi43[a-z0-9-]*\.vercel\.app$/,
+  /^https:\/\/portfolio-admin-ashy-psi[a-z0-9-]*\.vercel\.app$/,
+  /^https:\/\/software-company-mu[a-z0-9-]*\.vercel\.app$/,
+];
+
+// ✅ دالة موحدة للتحقق من الـ origin
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  if (allowedPatterns.some(pattern => pattern.test(origin))) return true;
+  return false;
+};
+
+// ✅ Preflight
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://software-company-mu.vercel.app',
-    'https://portfolio-admin-ashy-psi.vercel.app',
-  ];
-  if (allowedOrigins.includes(origin)) {
+  if (isOriginAllowed(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -35,26 +52,17 @@ app.options('*', (req, res) => {
   res.status(200).end();
 });
 
-// Middleware
 app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
-    directives: {
-      connectSrc: ["*"],
-    },
+    directives: { connectSrc: ["*"] },
   },
 }));
 app.use(compression());
 
-const allowedOrigins = [
-  'https://software-company-mu.vercel.app',
-  'https://portfolio-admin-ashy-psi.vercel.app',
-];
-
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, origin);
+    if (isOriginAllowed(origin)) return callback(null, origin || '*');
     return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
   },
   credentials: true,
@@ -73,16 +81,11 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// API key authentication middleware
+// ✅ API Key Auth
 const apiKeyAuth = (req, res, next) => {
   const origin = req.headers.origin;
-  const trustedOrigins = [
-    'https://software-company-mu.vercel.app',
-    'https://portfolio-vercel-bi43.vercel.app',
-    'https://portfolio-admin-ashy-psi.vercel.app',
-  ];
 
-  if (origin && trustedOrigins.includes(origin)) {
+  if (isOriginAllowed(origin)) {
     console.log(`Access granted for frontend origin: ${origin}`);
     return next();
   }
@@ -128,9 +131,8 @@ const apiKeyAuth = (req, res, next) => {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve static images
 app.use('/images', express.static(path.join(__dirname, 'public/images'), {
-  setHeaders: (res, path, stat) => {
+  setHeaders: (res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -138,14 +140,12 @@ app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   }
 }));
 
-// Connect to PostgreSQL
 let dbInitialized = false;
 const connectDB = async () => {
   if (dbInitialized) {
     console.log('Using cached PostgreSQL connection');
     return;
   }
-
   try {
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL environment variable is not set');
@@ -160,11 +160,9 @@ const connectDB = async () => {
   }
 };
 
-// Debug endpoint
 app.get('/api/debug-key', (req, res) => {
   const receivedKey = req.get('X-API-Key');
   const expectedKey = process.env.API_SECRET;
-
   res.json({
     status: 'Debug API Key Information',
     environment: process.env.NODE_ENV || 'development',
@@ -190,7 +188,6 @@ app.get('/api/debug-key', (req, res) => {
   });
 });
 
-// Test endpoint
 app.get('/api/test', (req, res) => {
   res.json({
     message: 'Test endpoint working',
@@ -200,24 +197,16 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Auth routes
 app.use('/api/auth', authRoutes);
-
-// Protected routes
 app.use('/api/blogs', apiKeyAuth, blogRoutes);
 app.use('/api/projects', apiKeyAuth, projectRoutes);
 app.use('/api/services', apiKeyAuth, serviceRoutes);
 app.use('/api/teams', apiKeyAuth, teamRoutes);
 
-// Contact route
 app.use('/api/contact', (req, res, next) => {
   if (req.method === 'POST') {
     const origin = req.get('Origin') || req.get('Referer');
-    const trustedOrigins = [
-      'https://software-company-mu.vercel.app',
-      'https://portfolio-admin-ashy-psi.vercel.app',
-    ];
-    if (origin && trustedOrigins.some(o => origin.startsWith(o))) {
+    if (origin && isOriginAllowed(origin)) {
       console.log(`Contact form submission allowed from frontend: ${origin}`);
       return next();
     }
@@ -225,7 +214,6 @@ app.use('/api/contact', (req, res, next) => {
   return apiKeyAuth(req, res, next);
 }, contactRoutes);
 
-// Health check
 app.get('/api/health', async (req, res) => {
   try {
     let dbTest = 'unknown';
@@ -254,7 +242,6 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'Portfolio Backend API',
@@ -276,7 +263,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error occurred:', err.stack);
   res.status(err.status || 500).json({
@@ -286,7 +272,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Handle unknown routes
 app.use((req, res) => {
   res.status(404).json({
     message: 'Route not found',
@@ -296,7 +281,6 @@ app.use((req, res) => {
   });
 });
 
-// Graceful shutdown
 const gracefulShutdown = async () => {
   try {
     await pool.end();
@@ -309,20 +293,17 @@ const gracefulShutdown = async () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-// Export for Vercel
 module.exports = async (req, res) => {
   await connectDB();
   return app(req, res);
 };
 
-// Run server locally in development
 if (process.env.NODE_ENV !== 'production') {
   connectDB().then(() => {
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
       console.log(`Test endpoint: http://localhost:${PORT}/api/test`);
-      console.log('Environment variables status:');
       console.log('- API_SECRET:', !!process.env.API_SECRET ? 'SET' : 'NOT SET');
       console.log('- DATABASE_URL:', !!process.env.DATABASE_URL ? 'SET' : 'NOT SET');
     });

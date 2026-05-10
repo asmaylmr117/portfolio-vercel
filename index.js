@@ -197,10 +197,10 @@ app.get('/api/test', (req, res) => {
 app.use('/api/auth', authRoutes);
 
 // Protected routes
-app.use('/api/blogs', apiKeyAuth, blogRoutes);
-app.use('/api/projects', apiKeyAuth, projectRoutes);
-app.use('/api/services', apiKeyAuth, serviceRoutes);
-app.use('/api/teams', apiKeyAuth, teamRoutes);
+app.use('/api/blogs',blogRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/services',  serviceRoutes);
+app.use('/api/teams', teamRoutes);
 
 // Contact route
 app.use('/api/contact', (req, res, next) => {

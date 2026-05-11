@@ -13,23 +13,30 @@
     {
       "src": "/api/(.*)",
       "methods": ["OPTIONS"],
-      "dest": "/index.js",
       "headers": {
-        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Origin": "$request_header_origin",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key, Cache-Control, Pragma, X-Requested-With",
-        "Access-Control-Allow-Credentials": "true"
-      }
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Max-Age": "86400"
+      },
+      "status": 204,
+      "continue": false
     },
     {
       "src": "/api/(.*)",
-      "dest": "/index.js"
+      "dest": "/index.js",
+      "headers": {
+        "Access-Control-Allow-Origin": "$request_header_origin",
+        "Access-Control-Allow-Credentials": "true"
+      }
     },
     {
       "src": "/images/(.*)",
       "dest": "/index.js",
       "headers": {
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "*",
+        "Cross-Origin-Resource-Policy": "cross-origin"
       }
     },
     {

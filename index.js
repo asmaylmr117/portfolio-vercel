@@ -18,21 +18,21 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Origins ثابتة
+
 const allowedOrigins = [
   'https://software-company-mu.vercel.app',
   'https://portfolio-admin-ashy-psi.vercel.app',
   'https://portfolio-vercel-bi43.vercel.app',
 ];
 
-// ✅ Patterns للـ preview URLs الديناميكية
+
 const allowedPatterns = [
   /^https:\/\/portfolio-vercel-bi43[a-z0-9-]*\.vercel\.app$/,
   /^https:\/\/portfolio-admin-ashy-psi[a-z0-9-]*\.vercel\.app$/,
   /^https:\/\/software-company-mu[a-z0-9-]*\.vercel\.app$/,
 ];
 
-// ✅ دالة موحدة للتحقق من الـ origin
+
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
   if (allowedOrigins.includes(origin)) return true;
@@ -40,15 +40,20 @@ const isOriginAllowed = (origin) => {
   return false;
 };
 
-// ✅ Preflight
-app.options('*', (req, res) => {
+
+const setCorsHeaders = (req, res) => {
   const origin = req.headers.origin;
   if (isOriginAllowed(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key, Cache-Control, Pragma');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
+};
+
+// ✅ Preflight
+app.options('*', (req, res) => {
+  setCorsHeaders(req, res);
   res.status(200).end();
 });
 
@@ -140,24 +145,37 @@ app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   }
 }));
 
+
 let dbInitialized = false;
+let dbInitPromise = null;
+
 const connectDB = async () => {
-  if (dbInitialized) {
-    console.log('Using cached PostgreSQL connection');
-    return;
-  }
-  try {
-    if (!process.env.DATABASE_URL) {
-      throw new Error('DATABASE_URL environment variable is not set');
+  
+  if (dbInitialized) return;
+
+  
+  if (dbInitPromise) return dbInitPromise;
+
+  dbInitPromise = (async () => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        throw new Error('DATABASE_URL environment variable is not set');
+      }
+      const res = await pool.query('SELECT NOW()');
+      console.log(`PostgreSQL Connected at: ${res.rows[0].now}`);
+      await initDB();
+      dbInitialized = true;
+      console.log('DB initialized successfully');
+    } catch (error) {
+      
+      dbInitPromise = null;
+      dbInitialized = false;
+      console.error('PostgreSQL connection error:', error.message);
+      throw error;
     }
-    const res = await pool.query('SELECT NOW()');
-    console.log(`PostgreSQL Connected at: ${res.rows[0].now}`);
-    await initDB();
-    dbInitialized = true;
-  } catch (error) {
-    console.error('PostgreSQL connection error:', error.message);
-    throw error;
-  }
+  })();
+
+  return dbInitPromise;
 };
 
 app.get('/api/debug-key', (req, res) => {
@@ -293,8 +311,27 @@ const gracefulShutdown = async () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
+
 module.exports = async (req, res) => {
-  await connectDB();
+  
+  setCorsHeaders(req, res);
+
+ 
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('DB connection failed:', err.message);
+    return res.status(503).json({
+      message: 'Service temporarily unavailable, please try again',
+      timestamp: new Date().toISOString()
+    });
+  }
+
   return app(req, res);
 };
 

@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -18,20 +17,19 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-
+// ✅ Origins ثابتة
 const allowedOrigins = [
   'https://software-company-mu.vercel.app',
   'https://portfolio-admin-ashy-psi.vercel.app',
   'https://portfolio-vercel-bi43.vercel.app',
 ];
 
-
+// ✅ Patterns للـ preview URLs الديناميكية
 const allowedPatterns = [
   /^https:\/\/portfolio-vercel-bi43[a-z0-9-]*\.vercel\.app$/,
   /^https:\/\/portfolio-admin-ashy-psi[a-z0-9-]*\.vercel\.app$/,
   /^https:\/\/software-company-mu[a-z0-9-]*\.vercel\.app$/,
 ];
-
 
 const isOriginAllowed = (origin) => {
   if (!origin) return true;
@@ -40,22 +38,22 @@ const isOriginAllowed = (origin) => {
   return false;
 };
 
-
-const setCorsHeaders = (req, res) => {
+// ✅ CORS headers - دي الدالة الأساسية اللي بتتشغل أول حاجة في كل request
+const applyCorsHeaders = (req, res) => {
   const origin = req.headers.origin;
-  if (isOriginAllowed(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  if (origin && isOriginAllowed(origin)) {
+    // لو origin معروف، بنحط الـ origin بالظبط مع credentials
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (!origin) {
+    // لو مفيش origin (direct API call) نسمح
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
+  // لو origin موجود بس مش في الـ list، vercel.json هيحط * كـ fallback
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-API-Key, Cache-Control, Pragma');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
 };
-
-// ✅ Preflight
-app.options('*', (req, res) => {
-  setCorsHeaders(req, res);
-  res.status(200).end();
-});
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -65,16 +63,14 @@ app.use(helmet({
 }));
 app.use(compression());
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) return callback(null, origin || '*');
-    return callback(new Error(`CORS policy: Origin ${origin} not allowed`));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key', 'Cache-Control', 'Pragma'],
-  optionsSuccessStatus: 200
-}));
+// ✅ CORS middleware - أول middleware بعد helmet
+app.use((req, res, next) => {
+  applyCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -98,19 +94,10 @@ const apiKeyAuth = (req, res, next) => {
   const apiKey = req.get('X-API-Key');
   const expectedKey = process.env.API_SECRET;
 
-  console.log('=== API KEY DEBUG ===');
-  console.log('Request IP:', req.ip);
-  console.log('Request Origin:', origin || 'not provided');
-  console.log('Received API Key:', apiKey ? `"${apiKey}"` : 'undefined');
-  console.log('Expected API Key exists:', !!expectedKey);
-  console.log('Keys match exactly:', apiKey === expectedKey);
-  console.log('====================');
-
   if (!apiKey) {
     console.warn(`Access attempt without API key from IP: ${req.ip}, Origin: ${origin || 'unknown'}`);
     return res.status(401).json({
       message: 'API key is missing',
-      debug: { hasApiKey: false, hasExpectedKey: !!expectedKey, origin: origin || 'unknown' },
       timestamp: new Date().toISOString()
     });
   }
@@ -119,12 +106,6 @@ const apiKeyAuth = (req, res, next) => {
     console.warn(`Access attempt with invalid API key from IP: ${req.ip}`);
     return res.status(401).json({
       message: 'Invalid API key',
-      debug: {
-        receivedKeyLength: apiKey.length,
-        expectedKeyLength: expectedKey ? expectedKey.length : 0,
-        keysMatch: apiKey === expectedKey,
-        hasExpectedKey: !!expectedKey
-      },
       timestamp: new Date().toISOString()
     });
   }
@@ -145,15 +126,12 @@ app.use('/images', express.static(path.join(__dirname, 'public/images'), {
   }
 }));
 
-
+// ✅ Singleton DB connection
 let dbInitialized = false;
 let dbInitPromise = null;
 
 const connectDB = async () => {
-  
   if (dbInitialized) return;
-
-  
   if (dbInitPromise) return dbInitPromise;
 
   dbInitPromise = (async () => {
@@ -161,13 +139,11 @@ const connectDB = async () => {
       if (!process.env.DATABASE_URL) {
         throw new Error('DATABASE_URL environment variable is not set');
       }
-      const res = await pool.query('SELECT NOW()');
-      console.log(`PostgreSQL Connected at: ${res.rows[0].now}`);
+      await pool.query('SELECT 1');
       await initDB();
       dbInitialized = true;
       console.log('DB initialized successfully');
     } catch (error) {
-      
       dbInitPromise = null;
       dbInitialized = false;
       console.error('PostgreSQL connection error:', error.message);
@@ -178,6 +154,15 @@ const connectDB = async () => {
   return dbInitPromise;
 };
 
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Test endpoint working',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    hasApiSecret: !!process.env.API_SECRET
+  });
+});
+
 app.get('/api/debug-key', (req, res) => {
   const receivedKey = req.get('X-API-Key');
   const expectedKey = process.env.API_SECRET;
@@ -186,7 +171,6 @@ app.get('/api/debug-key', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     request: {
       hasApiKeyHeader: !!receivedKey,
-      apiKeyValue: receivedKey || 'NOT_PROVIDED',
       apiKeyLength: receivedKey ? receivedKey.length : 0,
     },
     server: {
@@ -195,23 +179,8 @@ app.get('/api/debug-key', (req, res) => {
     },
     comparison: {
       exactMatch: receivedKey === expectedKey,
-      bothExist: !!receivedKey && !!expectedKey,
-    },
-    allEnvVars: {
-      NODE_ENV: process.env.NODE_ENV,
-      hasDatabaseUrl: !!process.env.DATABASE_URL,
-      hasApiSecret: !!process.env.API_SECRET,
     },
     timestamp: new Date().toISOString()
-  });
-});
-
-app.get('/api/test', (req, res) => {
-  res.json({
-    message: 'Test endpoint working',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    hasApiSecret: !!process.env.API_SECRET
   });
 });
 
@@ -225,7 +194,6 @@ app.use('/api/contact', (req, res, next) => {
   if (req.method === 'POST') {
     const origin = req.get('Origin') || req.get('Referer');
     if (origin && isOriginAllowed(origin)) {
-      console.log(`Contact form submission allowed from frontend: ${origin}`);
       return next();
     }
   }
@@ -234,20 +202,16 @@ app.use('/api/contact', (req, res, next) => {
 
 app.get('/api/health', async (req, res) => {
   try {
-    let dbTest = 'unknown';
     let dbStatus = 'unknown';
     try {
-      const result = await pool.query('SELECT 1 AS alive');
-      dbTest = result.rows[0].alive === 1 ? 'responsive' : 'unresponsive';
+      await pool.query('SELECT 1');
       dbStatus = 'connected';
-    } catch (error) {
-      dbTest = 'unresponsive';
+    } catch {
       dbStatus = 'disconnected';
     }
     res.json({
       status: 'OK',
-      message: 'Server is running on Vercel',
-      database: { type: 'PostgreSQL (Neon)', status: dbStatus, test: dbTest },
+      database: { type: 'PostgreSQL (Neon)', status: dbStatus },
       environment: {
         nodeEnv: process.env.NODE_ENV || 'development',
         hasApiSecret: !!process.env.API_SECRET,
@@ -264,7 +228,6 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Portfolio Backend API',
     version: '1.0.0',
-    database: 'PostgreSQL (Neon)',
     endpoints: {
       auth: { login: '/api/auth/login', register: '/api/auth/register', me: '/api/auth/me' },
       blogs: '/api/blogs',
@@ -273,10 +236,7 @@ app.get('/', (req, res) => {
       teams: '/api/teams',
       contact: '/api/contact',
       health: '/api/health',
-      test: '/api/test',
-      debugKey: '/api/debug-key'
     },
-    environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
   });
 });
@@ -311,23 +271,27 @@ const gracefulShutdown = async () => {
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
 
-
+// ✅ Vercel Serverless Export
+// CORS headers بتتحط في 3 أماكن للضمان:
+// 1. vercel.json headers (CDN level - قبل ما الكود يشتغل)
+// 2. applyCorsHeaders() جوه express middleware
+// 3. هنا قبل connectDB مباشرة
 module.exports = async (req, res) => {
-  
-  setCorsHeaders(req, res);
+  // ① CORS فوراً - أول حاجة قبل أي كود
+  applyCorsHeaders(req, res);
 
- 
+  // ② الـ preflight يرجع فوراً من غير DB
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    return res.status(204).end();
   }
 
-  
+  // ③ DB connection
   try {
     await connectDB();
   } catch (err) {
     console.error('DB connection failed:', err.message);
     return res.status(503).json({
-      message: 'Service temporarily unavailable, please try again',
+      message: 'Service temporarily unavailable, please try again in a moment',
       timestamp: new Date().toISOString()
     });
   }
@@ -338,9 +302,7 @@ module.exports = async (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
   connectDB().then(() => {
     app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`Health check: http://localhost:${PORT}/api/health`);
-      console.log(`Test endpoint: http://localhost:${PORT}/api/test`);
+      console.log(`Server running on port ${PORT}`);
       console.log('- API_SECRET:', !!process.env.API_SECRET ? 'SET' : 'NOT SET');
       console.log('- DATABASE_URL:', !!process.env.DATABASE_URL ? 'SET' : 'NOT SET');
     });
